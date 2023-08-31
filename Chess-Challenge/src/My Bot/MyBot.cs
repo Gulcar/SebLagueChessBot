@@ -14,14 +14,89 @@ public class MyBot : IChessBot
     // transposition table
     // boljsi evaluation
     // mogoce negamax porabi manj tokenov
+    // poglej Board.GetLegalMovesNonAlloc
 
-    int[] pieceValues = { 0, 100, 300, 300, 500, 900, 9999 };
+    int[] pieceValues = { 0, 100, 320, 330, 500, 900, 20000 };
+
+    int[] pawnValueTable =
+    {
+         0,  0,  0,  0,  0,  0,  0,  0,
+        50, 50, 50, 50, 50, 50, 50, 50,
+        10, 10, 20, 30, 30, 20, 10, 10,
+         5,  5, 10, 25, 25, 10,  5,  5,
+         0,  0,  0, 20, 20,  0,  0,  0,
+         5, -5,-10,  0,  0,-10, -5,  5,
+         5, 10, 10,-20,-20, 10, 10,  5,
+         0,  0,  0,  0,  0,  0,  0,  0
+    };
+
+    int[] knightValueTable =
+    {
+        -50,-40,-30,-30,-30,-30,-40,-50,
+        -40,-20,  0,  0,  0,  0,-20,-40,
+        -30,  0, 10, 15, 15, 10,  0,-30,
+        -30,  5, 15, 20, 20, 15,  5,-30,
+        -30,  0, 15, 20, 20, 15,  0,-30,
+        -30,  5, 10, 15, 15, 10,  5,-30,
+        -40,-20,  0,  5,  5,  0,-20,-40,
+        -50,-40,-30,-30,-30,-30,-40,-50,
+    };
+
+    int[] bishopValueTable =
+    {
+        -20,-10,-10,-10,-10,-10,-10,-20,
+        -10,  0,  0,  0,  0,  0,  0,-10,
+        -10,  0,  5, 10, 10,  5,  0,-10,
+        -10,  5,  5, 10, 10,  5,  5,-10,
+        -10,  0, 10, 10, 10, 10,  0,-10,
+        -10, 10, 10, 10, 10, 10, 10,-10,
+        -10,  5,  0,  0,  0,  0,  5,-10,
+        -20,-10,-10,-10,-10,-10,-10,-20,
+    };
+
+    int[] rookValueTable =
+    {
+          0,  0,  0,  0,  0,  0,  0,  0,
+          5, 10, 10, 10, 10, 10, 10,  5,
+         -5,  0,  0,  0,  0,  0,  0, -5,
+         -5,  0,  0,  0,  0,  0,  0, -5,
+         -5,  0,  0,  0,  0,  0,  0, -5,
+         -5,  0,  0,  0,  0,  0,  0, -5,
+         -5,  0,  0,  0,  0,  0,  0, -5,
+          0,  0,  0,  5,  5,  0,  0,  0
+    };
+
+    int[] queenValueTable =
+    {
+        -20,-10,-10, -5, -5,-10,-10,-20,
+        -10,  0,  0,  0,  0,  0,  0,-10,
+        -10,  0,  5,  5,  5,  5,  0,-10,
+         -5,  0,  5,  5,  5,  5,  0, -5,
+          0,  0,  5,  5,  5,  5,  0, -5,
+        -10,  5,  5,  5,  5,  5,  0,-10,
+        -10,  0,  5,  0,  0,  0,  0,-10,
+        -20,-10,-10, -5, -5,-10,-10,-20
+    };
+
+    int[] kingValueTable =
+    {
+        -30,-40,-40,-50,-50,-40,-40,-30,
+        -30,-40,-40,-50,-50,-40,-40,-30,
+        -30,-40,-40,-50,-50,-40,-40,-30,
+        -30,-40,-40,-50,-50,-40,-40,-30,
+        -20,-30,-30,-40,-40,-30,-30,-20,
+        -10,-20,-20,-20,-20,-20,-20,-10,
+         20, 20,  0,  0,  0,  0, 20, 20,
+         20, 30, 10,  0,  0, 10, 30, 20
+    };
+
+    int[][] valueTables;
 
     ChallengeController.MyStats myStats;
-
     public MyBot(ChallengeController.MyStats stats)
     {
         myStats = stats;
+        valueTables = new int[][] { new int[0], pawnValueTable, knightValueTable, bishopValueTable, rookValueTable, queenValueTable, kingValueTable };
     }
 
     public Move Think(Board board, Timer timer)
@@ -97,10 +172,21 @@ public class MyBot : IChessBot
     {
         int eval = 0;
 
-        for (PieceType i = PieceType.Pawn; i <= PieceType.King; i++)
+        PieceList[] allPieceLists = board.GetAllPieceLists();
+        foreach (PieceList pieceList in allPieceLists)
         {
-            eval += board.GetPieceList(i, true).Count * pieceValues[(int)i];
-            eval -= board.GetPieceList(i, false).Count * pieceValues[(int)i];
+            int side = pieceList.IsWhitePieceList ? 1 : -1;
+
+            eval += pieceValues[(int)pieceList.TypeOfPieceInList] * pieceList.Count * side;
+
+            foreach (Piece piece in pieceList)
+            {
+                int x = piece.Square.File;
+                int y = piece.Square.Rank;
+                if (pieceList.IsWhitePieceList) y = 7 - y;
+
+                eval += valueTables[(int)piece.PieceType][x + y * 8] * side;
+            }
         }
 
         myStats.PositionsEvaluated++;
