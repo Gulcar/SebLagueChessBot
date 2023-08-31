@@ -3,7 +3,7 @@ using System;
 using System.Numerics;
 using System.Collections.Generic;
 using System.Linq;
-using System.ComponentModel;
+
 using ChessChallenge.Application;
 
 public class MyBot : IChessBot
@@ -13,10 +13,16 @@ public class MyBot : IChessBot
     // upostevanje timerja in glede na timer globina searcha
     // transposition table
     // boljsi evaluation
+    // mogoce negamax porabi manj tokenov
 
-    int[] pieceValues = { 0, 10, 30, 30, 50, 90, 900 };
-    
-    ChessChallenge.Application.ChallengeController.MyStats myStats => Program.mainController.myStats;
+    int[] pieceValues = { 0, 100, 300, 300, 500, 900, 9999 };
+
+    ChallengeController.MyStats myStats;
+
+    public MyBot(ChallengeController.MyStats stats)
+    {
+        myStats = stats;
+    }
 
     public Move Think(Board board, Timer timer)
     {
@@ -42,6 +48,7 @@ public class MyBot : IChessBot
             }
         }
 
+        myStats.Evaluation = bestEval;
         return bestMove;
     }
 
@@ -54,7 +61,7 @@ public class MyBot : IChessBot
             return 0;
 
         if (board.IsInCheckmate())
-            return white ? -10000000 : 10000000;
+            return white ? int.MinValue : int.MaxValue;
 
         Move[] moves = board.GetLegalMoves();
         int bestEval = white ? int.MinValue : int.MaxValue;
