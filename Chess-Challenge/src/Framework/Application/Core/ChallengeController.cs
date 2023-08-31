@@ -24,6 +24,19 @@ namespace ChessChallenge.Application
 
         public bool isPlayingMt = false;
 
+        public class MyStats
+        {
+            public int ThinkingTime;
+            public float ThinkingTimeAvg;
+            public double TimeStarted;
+            public int PositionsEvaluated;
+            public int PositionsEvaluatedCurrent;
+            public int BranchesPrunned;
+            public int BranchesPrunnedCurrent;
+        }
+        public MyStats myStats = new();
+        
+
         // Game state
         readonly Random rng;
         int gameID;
@@ -150,6 +163,18 @@ namespace ChessChallenge.Application
             {
                 API.Timer timer = new(PlayerToMove.TimeRemainingMs, PlayerNotOnMove.TimeRemainingMs, GameDurationMilliseconds, IncrementMilliseconds);
                 API.Move move = PlayerToMove.Bot.Think(botBoard, timer);
+
+                if (PlayerToMove.Bot is MyBot)
+                {
+                    myStats.ThinkingTime = timer.MillisecondsElapsedThisTurn;
+
+                    if (myStats.ThinkingTimeAvg == 0.0f) myStats.ThinkingTimeAvg = myStats.ThinkingTime;
+                    else myStats.ThinkingTimeAvg = 0.9f * myStats.ThinkingTimeAvg + 0.1f * myStats.ThinkingTime;
+
+                    myStats.PositionsEvaluatedCurrent = myStats.PositionsEvaluated;
+                    myStats.BranchesPrunnedCurrent = myStats.BranchesPrunned;
+                }
+
                 return new Move(move.RawValue);
             }
             catch (Exception e)
@@ -423,6 +448,8 @@ namespace ChessChallenge.Application
             botAPlaysWhite = true;
             Log($"Starting new match: {nameA} vs {nameB}", false, ConsoleColor.Blue);
             StartNewGame(botTypeA, botTypeB);
+
+            myStats.TimeStarted = Raylib.GetTime();
         }
 
 

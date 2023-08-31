@@ -4,13 +4,25 @@ using System.Numerics;
 using System.Collections.Generic;
 using System.Linq;
 using System.ComponentModel;
+using ChessChallenge.Application;
 
 public class MyBot : IChessBot
 {
+    // TODO:
+    // searcha se naprej ce so na voljo captures
+    // upostevanje timerja in glede na timer globina searcha
+    // transposition table
+    // boljsi evaluation
+
     int[] pieceValues = { 0, 10, 30, 30, 50, 90, 900 };
+    
+    ChessChallenge.Application.ChallengeController.MyStats myStats => Program.mainController.myStats;
 
     public Move Think(Board board, Timer timer)
     {
+        myStats.PositionsEvaluated = 0;
+        myStats.BranchesPrunned = 0;
+
         bool white = board.IsWhiteToMove;
 
         Move[] moves = board.GetLegalMoves();
@@ -20,7 +32,7 @@ public class MyBot : IChessBot
         foreach (Move m in moves)
         {
             board.MakeMove(m);
-            int eval = Minimax(board, !white, 3);
+            int eval = Minimax(board, !white, 4, int.MinValue, int.MaxValue);
             board.UndoMove(m);
 
             if ((white && eval > bestEval) || (!white && eval < bestEval))
@@ -33,8 +45,7 @@ public class MyBot : IChessBot
         return bestMove;
     }
 
-    // TODO: bool white mogoce ne rabis glede na to da board ve ce je IsWhiteToMove
-    int Minimax(Board board, bool white, int depth)
+    int Minimax(Board board, bool white, int depth, int alpha, int beta)
     {
         if (depth == 0)
             return Evaluate(board);
@@ -43,7 +54,7 @@ public class MyBot : IChessBot
             return 0;
 
         if (board.IsInCheckmate())
-            return white ? -100000 : 100000;
+            return white ? -10000000 : 10000000;
 
         Move[] moves = board.GetLegalMoves();
         int bestEval = white ? int.MinValue : int.MaxValue;
@@ -51,11 +62,25 @@ public class MyBot : IChessBot
         foreach (Move m in moves)
         {
             board.MakeMove(m);
-            int eval = Minimax(board, !white, depth - 1);
+            int eval = Minimax(board, !white, depth - 1, alpha, beta);
             board.UndoMove(m);
 
-            if (white) bestEval = Math.Max(eval, bestEval);
-            else bestEval = Math.Min(eval, bestEval);
+            if (white)
+            {
+                bestEval = Math.Max(eval, bestEval);
+                alpha = Math.Max(eval, alpha);
+            }
+            else
+            {
+                bestEval = Math.Min(eval, bestEval);
+                beta = Math.Min(eval, beta);
+            }
+
+            if (beta <= alpha)
+            {
+                myStats.BranchesPrunned++;
+                return bestEval;
+            }
         }
 
         return bestEval;
@@ -71,6 +96,7 @@ public class MyBot : IChessBot
             eval -= board.GetPieceList(i, false).Count * pieceValues[(int)i];
         }
 
+        myStats.PositionsEvaluated++;
         return eval;
     }
 }

@@ -1,6 +1,5 @@
 ﻿using Raylib_cs;
 using System.Numerics;
-using System;
 
 namespace ChessChallenge.Application
 {
@@ -23,7 +22,12 @@ namespace ChessChallenge.Application
                 DrawStats(controller.BotStatsA);
                 startPos.Y += spacingY * 2;
                 DrawStats(controller.BotStatsB);
-           
+
+                startPos.Y += spacingY;
+                DrawNextText($"{controller.myStats.ThinkingTime}ms   (avg {(int)controller.myStats.ThinkingTimeAvg}ms)", regularFontSize, col);
+                DrawNextText($"Time: {(int)(Raylib.GetTime() - controller.myStats.TimeStarted)}s", regularFontSize, col);
+                DrawNextText($"Positions Evaluated: {controller.myStats.PositionsEvaluatedCurrent}", regularFontSize, col);
+                DrawNextText($"Branches Prunned: {controller.myStats.BranchesPrunnedCurrent}", regularFontSize, col);
 
                 void DrawStats(ChallengeController.BotMatchStats stats)
                 {
