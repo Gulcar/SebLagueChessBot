@@ -22,6 +22,8 @@ namespace ChessChallenge.Application
             EvilBot
         }
 
+        public bool isPlayingMt = false;
+
         // Game state
         readonly Random rng;
         int gameID;
@@ -325,8 +327,16 @@ namespace ChessChallenge.Application
 
         void UpdateBotMatchStats(GameResult result)
         {
-            UpdateStats(BotStatsA, botAPlaysWhite);
-            UpdateStats(BotStatsB, !botAPlaysWhite);
+            if (isPlayingMt)
+            {
+                UpdateStats(Program.mainController.BotStatsA, botAPlaysWhite);
+                UpdateStats(Program.mainController.BotStatsB, !botAPlaysWhite);
+            }
+            else
+            {
+                UpdateStats(BotStatsA, botAPlaysWhite);
+                UpdateStats(BotStatsB, !botAPlaysWhite);
+            }
 
             void UpdateStats(BotMatchStats stats, bool isWhiteStats)
             {

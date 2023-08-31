@@ -1,4 +1,6 @@
 ﻿using Raylib_cs;
+using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Numerics;
 using System.Runtime.InteropServices;
@@ -9,6 +11,11 @@ namespace ChessChallenge.Application
     {
         const bool hideRaylibLogs = true;
         static Camera2D cam;
+
+        public static bool playingMt => mtChallangeControllers.Count > 0;
+        public static List<ChallengeController> mtChallangeControllers = new();
+
+        public static ChallengeController mainController;
 
         public static void Main()
         {
@@ -29,7 +36,7 @@ namespace ChessChallenge.Application
 
             UpdateCamera(screenWidth, screenHeight);
 
-            ChallengeController controller = new();
+            mainController = new();
 
             while (!Raylib.WindowShouldClose())
             {
@@ -37,19 +44,23 @@ namespace ChessChallenge.Application
                 Raylib.ClearBackground(new Color(22, 22, 22, 255));
                 Raylib.BeginMode2D(cam);
 
-                controller.Update();
-                controller.Draw();
+                mainController.Update();
+
+                if (playingMt)
+                    mtChallangeControllers.ForEach(c => c.Update());
+
+                mainController.Draw();
 
                 Raylib.EndMode2D();
 
-                controller.DrawOverlay();
+                mainController.DrawOverlay();
 
                 Raylib.EndDrawing();
             }
 
             Raylib.CloseWindow();
 
-            controller.Release();
+            mainController.Release();
             UIHelper.Release();
         }
 
@@ -103,7 +114,29 @@ namespace ChessChallenge.Application
             File.WriteAllText(FileHelper.PrefsFilePath, isBigWindow ? "1" : "0");
         }
 
-      
+        public static void StartMyBotvsEvilBotMT()
+        {
+            StopMyBotvsEvilBotMT();
+
+            const int numGames = 12;
+            for (int i = 0; i < numGames; i++)
+            {
+                ChallengeController c = new();
+                mtChallangeControllers.Add(c);
+                c.isPlayingMt = true;
+                c.StartNewBotMatch(ChallengeController.PlayerType.MyBot, ChallengeController.PlayerType.EvilBot);
+            }
+        }
+
+        public static void StopMyBotvsEvilBotMT()
+        {
+            if (playingMt)
+                Console.WriteLine("stopped playing mt");
+
+            mtChallangeControllers.ForEach(c => c.Release());
+
+            mtChallangeControllers.Clear();
+        }
 
     }
 

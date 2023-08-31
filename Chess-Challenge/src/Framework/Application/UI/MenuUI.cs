@@ -9,24 +9,34 @@ namespace ChessChallenge.Application
     {
         public static void DrawButtons(ChallengeController controller)
         {
-            Vector2 buttonPos = UIHelper.Scale(new Vector2(260, 210));
+            Vector2 buttonPos = UIHelper.Scale(new Vector2(260, 180));
             Vector2 buttonSize = UIHelper.Scale(new Vector2(260, 55));
             float spacing = buttonSize.Y * 1.2f;
             float breakSpacing = spacing * 0.6f;
 
             // Game Buttons
+            if (NextButtonInRow("MyBot vs EvilBot MT", ref buttonPos, spacing, buttonSize))
+            {
+                Program.StartMyBotvsEvilBotMT();
+                controller.StartNewBotMatch(ChallengeController.PlayerType.MyBot, ChallengeController.PlayerType.EvilBot);
+            }
+            buttonPos.Y += breakSpacing;
             if (NextButtonInRow("Human vs MyBot", ref buttonPos, spacing, buttonSize))
             {
+                Program.StopMyBotvsEvilBotMT();
+
                 var whiteType = controller.HumanWasWhiteLastGame ? ChallengeController.PlayerType.MyBot : ChallengeController.PlayerType.Human;
                 var blackType = !controller.HumanWasWhiteLastGame ? ChallengeController.PlayerType.MyBot : ChallengeController.PlayerType.Human;
                 controller.StartNewGame(whiteType, blackType);
             }
             if (NextButtonInRow("MyBot vs MyBot", ref buttonPos, spacing, buttonSize))
             {
+                Program.StopMyBotvsEvilBotMT();
                 controller.StartNewBotMatch(ChallengeController.PlayerType.MyBot, ChallengeController.PlayerType.MyBot);
             }
             if (NextButtonInRow("MyBot vs EvilBot", ref buttonPos, spacing, buttonSize))
             {
+                Program.StopMyBotvsEvilBotMT();
                 controller.StartNewBotMatch(ChallengeController.PlayerType.MyBot, ChallengeController.PlayerType.EvilBot);
             }
 
@@ -36,6 +46,15 @@ namespace ChessChallenge.Application
             if (NextButtonInRow("Save Games", ref buttonPos, spacing, buttonSize))
             {
                 string pgns = controller.AllPGNs;
+
+                if (Program.playingMt)
+                {
+                    foreach (var c in Program.mtChallangeControllers)
+                    {
+                        pgns += c.AllPGNs;
+                    }
+                }
+
                 string directoryPath = Path.Combine(FileHelper.AppDataPath, "Games");
                 Directory.CreateDirectory(directoryPath);
                 string fileName = FileHelper.GetUniqueFileName(directoryPath, "games", ".txt");
