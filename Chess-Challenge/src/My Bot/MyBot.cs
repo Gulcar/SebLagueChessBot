@@ -25,7 +25,8 @@ public class MyBot : IChessBot
         public int Eval;
     }
 
-    TTEntry[] transpositionTable = new TTEntry[0xffffff + 1];
+    const int ttSize = 16_000_000; // 256_000_000 / 16;
+    TTEntry[] transpositionTable = new TTEntry[ttSize];
 
     ChallengeController.MyStats myStats;
     public MyBot(ChallengeController.MyStats stats)
@@ -42,6 +43,7 @@ public class MyBot : IChessBot
         bool white = board.IsWhiteToMove;
 
         Move[] moves = board.GetLegalMoves();
+        OrderMoves(moves);
         Move bestMove = moves[0];
         int bestEval = white ? int.MinValue : int.MaxValue;
 
@@ -64,20 +66,22 @@ public class MyBot : IChessBot
 
     int MinimaxTransposition(Board board, bool white, int depth, int alpha, int beta)
     {
-        ulong ttIndex = board.ZobristKey & 0xffffff;
+        ulong ttIndex = board.ZobristKey % ttSize;
+        TTEntry ttEntry = transpositionTable[ttIndex];
 
-        if (transpositionTable[ttIndex].Key == board.ZobristKey &&
-            transpositionTable[ttIndex].Depth >= depth)
+        if (ttEntry.Key == board.ZobristKey &&
+            ttEntry.Depth >= depth)
         {
             myStats.Transpositions++;
-            return transpositionTable[ttIndex].Eval;
+            return ttEntry.Eval;
         }
 
         int eval = Minimax(board, white, depth, alpha, beta);
 
-        transpositionTable[ttIndex].Key = board.ZobristKey;
-        transpositionTable[ttIndex].Depth = (short)depth;
-        transpositionTable[ttIndex].Eval = eval;
+        ttEntry.Key = board.ZobristKey;
+        ttEntry.Depth = (short)depth;
+        ttEntry.Eval = eval;
+        transpositionTable[ttIndex] = ttEntry;
 
         return eval;
     }
@@ -94,6 +98,7 @@ public class MyBot : IChessBot
             return white ? int.MinValue : int.MaxValue;
 
         Move[] moves = board.GetLegalMoves();
+        OrderMoves(moves);
         int bestEval = white ? int.MinValue : int.MaxValue;
 
         foreach (Move m in moves)
@@ -141,5 +146,21 @@ public class MyBot : IChessBot
 
         myStats.PositionsEvaluated++;
         return eval;
+    }
+
+    void OrderMoves(Move[] moves)
+    {
+        int j = 0;
+
+        for (int i = 0; i < moves.Length; i++)
+        {
+            if (moves[i].IsPromotion || moves[i].IsCapture)
+            {
+                Move m = moves[j];
+                moves[j] = moves[i];
+                moves[i] = m;
+                j++;
+            }
+        }
     }
 }
