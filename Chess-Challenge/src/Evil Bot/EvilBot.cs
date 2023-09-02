@@ -4,17 +4,34 @@ using System.Numerics;
 using System.Collections.Generic;
 using System.Linq;
 
-using ChessChallenge.Application;
-
 public class EvilBot : IChessBot
 {
-    int[] pieceValues = { 0, 100, 330, 320, 500, 900, 20000 };
+    // TODO:
+    // searcha se naprej ce so na voljo captures
+    // upostevanje timerja in glede na timer globina searcha
+    // transposition table
+    // boljsi evaluation
+    // mogoce negamax porabi manj tokenov
+    // poglej Board.GetLegalMovesNonAlloc
+
+    int[] pieceValues = { 0, 100, 320, 330, 500, 900, 20000 };
+
+    struct TTEntry
+    {
+        public ulong Key;
+        public short Depth;
+        public int Eval;
+    }
+
+    const int ttSize = 16_000_000; // 256_000_000 / 16;
+    TTEntry[] transpositionTable = new TTEntry[ttSize];
 
     public Move Think(Board board, Timer timer)
     {
         bool white = board.IsWhiteToMove;
 
         Move[] moves = board.GetLegalMoves();
+        OrderMoves(moves);
         Move bestMove = moves[0];
         int bestEval = white ? int.MinValue : int.MaxValue;
 
@@ -36,6 +53,15 @@ public class EvilBot : IChessBot
 
     int Minimax(Board board, bool white, int depth, int alpha, int beta)
     {
+        ulong ttIndex = board.ZobristKey % ttSize;
+        TTEntry ttEntry = transpositionTable[ttIndex];
+
+        if (ttEntry.Key == board.ZobristKey &&
+            ttEntry.Depth >= depth)
+        {
+            return ttEntry.Eval;
+        }
+
         if (depth == 0)
             return Evaluate(board);
 
@@ -46,6 +72,7 @@ public class EvilBot : IChessBot
             return white ? int.MinValue : int.MaxValue;
 
         Move[] moves = board.GetLegalMoves();
+        OrderMoves(moves);
         int bestEval = white ? int.MinValue : int.MaxValue;
 
         foreach (Move m in moves)
@@ -70,6 +97,11 @@ public class EvilBot : IChessBot
             }
         }
 
+        ttEntry.Key = board.ZobristKey;
+        ttEntry.Depth = (short)depth;
+        ttEntry.Eval = bestEval;
+        transpositionTable[ttIndex] = ttEntry;
+
         return bestEval;
     }
 
@@ -90,5 +122,21 @@ public class EvilBot : IChessBot
         board.UndoSkipTurn();
 
         return eval;
+    }
+
+    void OrderMoves(Move[] moves)
+    {
+        int j = 0;
+
+        for (int i = 0; i < moves.Length; i++)
+        {
+            if (moves[i].IsPromotion || moves[i].IsCapture)
+            {
+                Move m = moves[j];
+                moves[j] = moves[i];
+                moves[i] = m;
+                j++;
+            }
+        }
     }
 }

@@ -32,7 +32,8 @@ namespace ChessChallenge.Application
                 DrawNextText($"Positions Evaluated: {controller.myStats.PositionsEvaluatedCurrent}", regularFontSize, col);
                 DrawNextText($"Branches Prunned: {controller.myStats.BranchesPrunnedCurrent}", regularFontSize, col);
                 DrawNextText($"Transpositions: {controller.myStats.TranspositionsCurrent}", regularFontSize, col);
-                DrawNextText($"Evaluation: {controller.myStats.Evaluation}", regularFontSize, col);
+                DrawNextText($"Depth Searched: {controller.myStats.DepthSearchedCurrent}", regularFontSize, col);
+                DrawNextText($"Evaluation: {controller.myStats.EvaluationCurrent}", regularFontSize, col);
             }
 
             void DrawStats(ChallengeController.BotMatchStats stats)

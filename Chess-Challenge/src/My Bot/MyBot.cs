@@ -40,6 +40,23 @@ public class MyBot : IChessBot
         myStats.BranchesPrunned = 0;
         myStats.Transpositions = 0;
 
+        Move move = Move.NullMove;
+
+        for (int depth = 1; depth < 256; depth++)
+        {
+            move = Search(board, depth, move);
+
+            myStats.DepthSearched = depth;
+
+            if (timer.MillisecondsElapsedThisTurn > timer.MillisecondsRemaining / 120)
+                break;
+        }
+
+        return move;
+    }
+
+    Move Search(Board board, int depth, Move prevBest)
+    {
         bool white = board.IsWhiteToMove;
 
         Move[] moves = board.GetLegalMoves();
@@ -47,10 +64,19 @@ public class MyBot : IChessBot
         Move bestMove = moves[0];
         int bestEval = white ? int.MinValue : int.MaxValue;
 
+        int alpha = int.MinValue;
+        int beta = int.MaxValue;
+
+        if (!prevBest.IsNull)
+            SearchMove(prevBest);
+
         foreach (Move m in moves)
+            SearchMove(m);
+        
+        void SearchMove(Move m)
         {
             board.MakeMove(m);
-            int eval = Minimax(board, !white, 4, int.MinValue, int.MaxValue);
+            int eval = Minimax(board, !white, depth - 1, alpha, beta);
             board.UndoMove(m);
 
             if ((white && eval > bestEval) || (!white && eval < bestEval))
@@ -58,6 +84,9 @@ public class MyBot : IChessBot
                 bestEval = eval;
                 bestMove = m;
             }
+
+            if (white) alpha = Math.Max(eval, alpha);
+            else beta = Math.Min(eval, beta);
         }
 
         myStats.Evaluation = bestEval;
