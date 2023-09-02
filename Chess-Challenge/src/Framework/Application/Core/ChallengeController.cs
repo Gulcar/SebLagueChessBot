@@ -32,6 +32,8 @@ namespace ChessChallenge.Application
             public int PositionsEvaluatedCurrent;
             public int BranchesPrunned;
             public int BranchesPrunnedCurrent;
+            public int Transpositions;
+            public int TranspositionsCurrent;
             public int Evaluation;
         }
         public MyStats myStats = new();
@@ -173,6 +175,7 @@ namespace ChessChallenge.Application
 
                     myStats.PositionsEvaluatedCurrent = myStats.PositionsEvaluated;
                     myStats.BranchesPrunnedCurrent = myStats.BranchesPrunned;
+                    myStats.TranspositionsCurrent = myStats.Transpositions;
                 }
 
                 return new Move(move.RawValue);

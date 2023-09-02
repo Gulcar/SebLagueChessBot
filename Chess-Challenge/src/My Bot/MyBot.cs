@@ -18,91 +18,26 @@ public class MyBot : IChessBot
 
     int[] pieceValues = { 0, 100, 320, 330, 500, 900, 20000 };
 
-    int[] pawnValueTable =
+    struct TTEntry
     {
-         0,  0,  0,  0,  0,  0,  0,  0,
-        50, 50, 50, 50, 50, 50, 50, 50,
-        10, 10, 20, 30, 30, 20, 10, 10,
-         5,  5, 10, 25, 25, 10,  5,  5,
-         0,  0,  0, 20, 20,  0,  0,  0,
-         5, -5,-10,  0,  0,-10, -5,  5,
-         5, 10, 10,-20,-20, 10, 10,  5,
-         0,  0,  0,  0,  0,  0,  0,  0
-    };
+        public ulong Key;
+        public short Depth;
+        public int Eval;
+    }
 
-    int[] knightValueTable =
-    {
-        -50,-40,-30,-30,-30,-30,-40,-50,
-        -40,-20,  0,  0,  0,  0,-20,-40,
-        -30,  0, 10, 15, 15, 10,  0,-30,
-        -30,  5, 15, 20, 20, 15,  5,-30,
-        -30,  0, 15, 20, 20, 15,  0,-30,
-        -30,  5, 10, 15, 15, 10,  5,-30,
-        -40,-20,  0,  5,  5,  0,-20,-40,
-        -50,-40,-30,-30,-30,-30,-40,-50,
-    };
-
-    int[] bishopValueTable =
-    {
-        -20,-10,-10,-10,-10,-10,-10,-20,
-        -10,  0,  0,  0,  0,  0,  0,-10,
-        -10,  0,  5, 10, 10,  5,  0,-10,
-        -10,  5,  5, 10, 10,  5,  5,-10,
-        -10,  0, 10, 10, 10, 10,  0,-10,
-        -10, 10, 10, 10, 10, 10, 10,-10,
-        -10,  5,  0,  0,  0,  0,  5,-10,
-        -20,-10,-10,-10,-10,-10,-10,-20,
-    };
-
-    int[] rookValueTable =
-    {
-          0,  0,  0,  0,  0,  0,  0,  0,
-          5, 10, 10, 10, 10, 10, 10,  5,
-         -5,  0,  0,  0,  0,  0,  0, -5,
-         -5,  0,  0,  0,  0,  0,  0, -5,
-         -5,  0,  0,  0,  0,  0,  0, -5,
-         -5,  0,  0,  0,  0,  0,  0, -5,
-         -5,  0,  0,  0,  0,  0,  0, -5,
-          0,  0,  0,  5,  5,  0,  0,  0
-    };
-
-    int[] queenValueTable =
-    {
-        -20,-10,-10, -5, -5,-10,-10,-20,
-        -10,  0,  0,  0,  0,  0,  0,-10,
-        -10,  0,  5,  5,  5,  5,  0,-10,
-         -5,  0,  5,  5,  5,  5,  0, -5,
-          0,  0,  5,  5,  5,  5,  0, -5,
-        -10,  5,  5,  5,  5,  5,  0,-10,
-        -10,  0,  5,  0,  0,  0,  0,-10,
-        -20,-10,-10, -5, -5,-10,-10,-20
-    };
-
-    int[] kingValueTable =
-    {
-        -30,-40,-40,-50,-50,-40,-40,-30,
-        -30,-40,-40,-50,-50,-40,-40,-30,
-        -30,-40,-40,-50,-50,-40,-40,-30,
-        -30,-40,-40,-50,-50,-40,-40,-30,
-        -20,-30,-30,-40,-40,-30,-30,-20,
-        -10,-20,-20,-20,-20,-20,-20,-10,
-         20, 20,  0,  0,  0,  0, 20, 20,
-         20, 30, 10,  0,  0, 10, 30, 20
-    };
-
-    int[][] valueTables;
+    TTEntry[] transpositionTable = new TTEntry[0xffffff + 1];
 
     ChallengeController.MyStats myStats;
     public MyBot(ChallengeController.MyStats stats)
     {
         myStats = stats;
-        valueTables = new int[][] { new int[0], pawnValueTable, knightValueTable, bishopValueTable, rookValueTable, queenValueTable, kingValueTable };
     }
 
     public Move Think(Board board, Timer timer)
     {
         myStats.PositionsEvaluated = 0;
         myStats.BranchesPrunned = 0;
+        myStats.Transpositions = 0;
 
         bool white = board.IsWhiteToMove;
 
@@ -113,7 +48,7 @@ public class MyBot : IChessBot
         foreach (Move m in moves)
         {
             board.MakeMove(m);
-            int eval = Minimax(board, !white, 4, int.MinValue, int.MaxValue);
+            int eval = MinimaxTransposition(board, !white, 4, int.MinValue, int.MaxValue);
             board.UndoMove(m);
 
             if ((white && eval > bestEval) || (!white && eval < bestEval))
@@ -125,6 +60,26 @@ public class MyBot : IChessBot
 
         myStats.Evaluation = bestEval;
         return bestMove;
+    }
+
+    int MinimaxTransposition(Board board, bool white, int depth, int alpha, int beta)
+    {
+        ulong ttIndex = board.ZobristKey & 0xffffff;
+
+        if (transpositionTable[ttIndex].Key == board.ZobristKey &&
+            transpositionTable[ttIndex].Depth >= depth)
+        {
+            myStats.Transpositions++;
+            return transpositionTable[ttIndex].Eval;
+        }
+
+        int eval = Minimax(board, white, depth, alpha, beta);
+
+        transpositionTable[ttIndex].Key = board.ZobristKey;
+        transpositionTable[ttIndex].Depth = (short)depth;
+        transpositionTable[ttIndex].Eval = eval;
+
+        return eval;
     }
 
     int Minimax(Board board, bool white, int depth, int alpha, int beta)
@@ -144,7 +99,7 @@ public class MyBot : IChessBot
         foreach (Move m in moves)
         {
             board.MakeMove(m);
-            int eval = Minimax(board, !white, depth - 1, alpha, beta);
+            int eval = MinimaxTransposition(board, !white, depth - 1, alpha, beta);
             board.UndoMove(m);
 
             if (white)
@@ -171,23 +126,18 @@ public class MyBot : IChessBot
     int Evaluate(Board board)
     {
         int eval = 0;
+        int side = board.IsWhiteToMove ? 1 : -1;
 
-        PieceList[] allPieceLists = board.GetAllPieceLists();
-        foreach (PieceList pieceList in allPieceLists)
+        for (PieceType i = PieceType.Pawn; i <= PieceType.King; i++)
         {
-            int side = pieceList.IsWhitePieceList ? 1 : -1;
-
-            eval += pieceValues[(int)pieceList.TypeOfPieceInList] * pieceList.Count * side;
-
-            foreach (Piece piece in pieceList)
-            {
-                int x = piece.Square.File;
-                int y = piece.Square.Rank;
-                if (pieceList.IsWhitePieceList) y = 7 - y;
-
-                eval += valueTables[(int)piece.PieceType][x + y * 8] * side;
-            }
+            eval += board.GetPieceList(i, true).Count * pieceValues[(int)i];
+            eval -= board.GetPieceList(i, false).Count * pieceValues[(int)i];
         }
+
+        eval += board.GetLegalMoves().Length * 2 * side;
+        board.ForceSkipTurn();
+        eval -= board.GetLegalMoves().Length * 2 * side;
+        board.UndoSkipTurn();
 
         myStats.PositionsEvaluated++;
         return eval;
