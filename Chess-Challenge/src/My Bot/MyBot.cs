@@ -50,7 +50,7 @@ public class MyBot : IChessBot
         foreach (Move m in moves)
         {
             board.MakeMove(m);
-            int eval = MinimaxTransposition(board, !white, 4, int.MinValue, int.MaxValue);
+            int eval = Minimax(board, !white, 4, int.MinValue, int.MaxValue);
             board.UndoMove(m);
 
             if ((white && eval > bestEval) || (!white && eval < bestEval))
@@ -64,7 +64,7 @@ public class MyBot : IChessBot
         return bestMove;
     }
 
-    int MinimaxTransposition(Board board, bool white, int depth, int alpha, int beta)
+    int Minimax(Board board, bool white, int depth, int alpha, int beta)
     {
         ulong ttIndex = board.ZobristKey % ttSize;
         TTEntry ttEntry = transpositionTable[ttIndex];
@@ -76,18 +76,6 @@ public class MyBot : IChessBot
             return ttEntry.Eval;
         }
 
-        int eval = Minimax(board, white, depth, alpha, beta);
-
-        ttEntry.Key = board.ZobristKey;
-        ttEntry.Depth = (short)depth;
-        ttEntry.Eval = eval;
-        transpositionTable[ttIndex] = ttEntry;
-
-        return eval;
-    }
-
-    int Minimax(Board board, bool white, int depth, int alpha, int beta)
-    {
         if (depth == 0)
             return Evaluate(board);
 
@@ -104,7 +92,7 @@ public class MyBot : IChessBot
         foreach (Move m in moves)
         {
             board.MakeMove(m);
-            int eval = MinimaxTransposition(board, !white, depth - 1, alpha, beta);
+            int eval = Minimax(board, !white, depth - 1, alpha, beta);
             board.UndoMove(m);
 
             if (white)
@@ -124,6 +112,11 @@ public class MyBot : IChessBot
                 return bestEval;
             }
         }
+
+        ttEntry.Key = board.ZobristKey;
+        ttEntry.Depth = (short)depth;
+        ttEntry.Eval = bestEval;
+        transpositionTable[ttIndex] = ttEntry;
 
         return bestEval;
     }
