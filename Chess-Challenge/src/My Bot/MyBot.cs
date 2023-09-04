@@ -10,25 +10,25 @@ public class MyBot : IChessBot
 {
     // TODO:
     // searcha se naprej ce so na voljo captures
-    // upostevanje timerja in glede na timer globina searcha
-    // transposition table
-    // boljsi evaluation
-    // mogoce negamax porabi manj tokenov
-    // poglej Board.GetLegalMovesNonAlloc
+    // veliko boljsi evaluation
+    // mogoce probi nazaj dobit v tt lower in upper bound
 
     int[] pieceValues = { 0, 100, 320, 330, 500, 900, 20000 };
 
+    const int infinity = 1_000_000_000;
+
     struct TTEntry
     {
-        public ulong Key;
-        public short Depth;
+        public uint Key;
+        public byte Depth;
         public int Eval;
     }
 
-    const int ttSize = 16_000_000; // 256_000_000 / 16;
+    const int ttSize = 21_333_333; // 256_000_000 / sizeof(TTEntry)(12);
     TTEntry[] transpositionTable = new TTEntry[ttSize];
 
     ChallengeController.MyStats myStats;
+    bool printMoves = false;
     public MyBot(ChallengeController.MyStats stats)
     {
         myStats = stats;
@@ -62,90 +62,103 @@ public class MyBot : IChessBot
         Move[] moves = board.GetLegalMoves();
         OrderMoves(moves);
         Move bestMove = moves[0];
-        int bestEval = white ? int.MinValue : int.MaxValue;
+        int bestEval = -infinity;
 
-        int alpha = int.MinValue;
-        int beta = int.MaxValue;
+        int alpha = -infinity;
+        int beta = infinity;
+
+        if (printMoves)
+            Console.WriteLine($"\n\npossible moves (depth {depth}):");
 
         if (!prevBest.IsNull)
             SearchMove(prevBest);
 
         foreach (Move m in moves)
             SearchMove(m);
-        
+
         void SearchMove(Move m)
         {
             board.MakeMove(m);
-            int eval = Minimax(board, !white, depth - 1, alpha, beta);
+            int eval = -Negamax(board, !white, depth - 1, -beta, -alpha);
             board.UndoMove(m);
 
-            if ((white && eval > bestEval) || (!white && eval < bestEval))
+            if (printMoves)
+                Console.WriteLine($"{m} -> {eval}");
+
+            if (eval > bestEval)
             {
                 bestEval = eval;
                 bestMove = m;
             }
 
-            if (white) alpha = Math.Max(eval, alpha);
-            else beta = Math.Min(eval, beta);
+            if (eval > alpha)
+            {
+                alpha = eval;
+            }
         }
 
         myStats.Evaluation = bestEval;
         return bestMove;
     }
 
-    int Minimax(Board board, bool white, int depth, int alpha, int beta)
+    // https://en.wikipedia.org/wiki/Negamax
+    int Negamax(Board board, bool white, int depth, int alpha, int beta)
     {
+        int alphaOg = alpha;
+
         ulong ttIndex = board.ZobristKey % ttSize;
         TTEntry ttEntry = transpositionTable[ttIndex];
 
-        if (ttEntry.Key == board.ZobristKey &&
+        if (ttEntry.Key == (uint)board.ZobristKey &&
             ttEntry.Depth >= depth)
         {
             myStats.Transpositions++;
             return ttEntry.Eval;
         }
 
-        if (depth == 0)
-            return Evaluate(board);
+        if (board.IsInCheckmate())
+            return -infinity;
 
         if (board.IsDraw())
             return 0;
 
-        if (board.IsInCheckmate())
-            return white ? int.MinValue : int.MaxValue;
+        if (depth == 0)
+            return Evaluate(board);
 
         Move[] moves = board.GetLegalMoves();
         OrderMoves(moves);
-        int bestEval = white ? int.MinValue : int.MaxValue;
+        int bestEval = -infinity;
 
         foreach (Move m in moves)
         {
             board.MakeMove(m);
-            int eval = Minimax(board, !white, depth - 1, alpha, beta);
+            int eval = -Negamax(board, !white, depth - 1, -beta, -alpha);
             board.UndoMove(m);
 
-            if (white)
+            if (eval > bestEval)
             {
-                bestEval = Math.Max(eval, bestEval);
-                alpha = Math.Max(eval, alpha);
-            }
-            else
-            {
-                bestEval = Math.Min(eval, bestEval);
-                beta = Math.Min(eval, beta);
+                bestEval = eval;
             }
 
-            if (beta <= alpha)
+            if (eval > alpha)
+            {
+                alpha = eval;
+            }
+
+            if (alpha >= beta)
             {
                 myStats.BranchesPrunned++;
-                return bestEval;
+                break;
             }
         }
 
-        ttEntry.Key = board.ZobristKey;
-        ttEntry.Depth = (short)depth;
-        ttEntry.Eval = bestEval;
-        transpositionTable[ttIndex] = ttEntry;
+        if (bestEval > alphaOg && bestEval < beta)
+        {
+            ttEntry.Key = (uint)board.ZobristKey;
+            ttEntry.Depth = (byte)depth;
+            ttEntry.Eval = bestEval;
+            transpositionTable[ttIndex] = ttEntry;
+        }
 
         return bestEval;
     }
@@ -157,13 +170,13 @@ public class MyBot : IChessBot
 
         for (PieceType i = PieceType.Pawn; i <= PieceType.King; i++)
         {
-            eval += board.GetPieceList(i, true).Count * pieceValues[(int)i];
-            eval -= board.GetPieceList(i, false).Count * pieceValues[(int)i];
+            eval += board.GetPieceList(i, true).Count * pieceValues[(int)i] * side;
+            eval -= board.GetPieceList(i, false).Count * pieceValues[(int)i] * side;
         }
 
-        eval += board.GetLegalMoves().Length * 2 * side;
+        eval += board.GetLegalMoves().Length * 2;
         board.ForceSkipTurn();
-        eval -= board.GetLegalMoves().Length * 2 * side;
+        eval -= board.GetLegalMoves().Length * 2;
         board.UndoSkipTurn();
 
         myStats.PositionsEvaluated++;
