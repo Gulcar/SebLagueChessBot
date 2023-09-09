@@ -1,4 +1,5 @@
-﻿using Raylib_cs;
+﻿using ChessChallenge.API;
+using Raylib_cs;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -19,6 +20,8 @@ namespace ChessChallenge.Application
 
         public static void Main()
         {
+            //TestEvaluation();
+
             Vector2 loadedWindowSize = GetSavedWindowSize();
             int screenWidth = (int)loadedWindowSize.X;
             int screenHeight = (int)loadedWindowSize.Y;
@@ -111,6 +114,24 @@ namespace ChessChallenge.Application
             Directory.CreateDirectory(FileHelper.AppDataPath);
             bool isBigWindow = Raylib.GetScreenWidth() > Settings.ScreenSizeSmall.X;
             File.WriteAllText(FileHelper.PrefsFilePath, isBigWindow ? "1" : "0");
+        }
+
+        static void TestEvaluation()
+        {
+            ChallengeController.MyStats stats = new();
+            MyBot myBot = new(stats);
+
+            while (true)
+            {
+                string? input = Console.ReadLine();
+                if (input == null) System.Environment.Exit(1);
+
+                Chess.Board cboard = new();
+                cboard.LoadPosition(input);
+                API.Board board = new(cboard);
+
+                Console.WriteLine($"static eval: {myBot.Evaluate(board)}");
+            }
         }
 
         public static void StartMyBotvsEvilBotMT()

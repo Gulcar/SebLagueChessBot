@@ -5,13 +5,19 @@ using System.Collections.Generic;
 using System.Linq;
 
 using ChessChallenge.Application;
+using System.ComponentModel;
 
 public class MyBot : IChessBot
 {
     // TODO:
     // searcha se naprej ce so na voljo captures
-    // veliko boljsi evaluation
+    // veliko boljsi evaluation:
+    // - bolj pazi na kralja
+    // - v endgameu daj kmete naprej
+    // - doubled, blocked, isolated pawns
+    // - center control
     // mogoce probi nazaj dobit v tt lower in upper bound
+    // tempo je izi dobit na njemu
 
     int[] pieceValues = { 0, 100, 320, 330, 500, 900, 20000 };
 
@@ -37,7 +43,7 @@ public class MyBot : IChessBot
     public Move Think(Board board, Timer timer)
     {
         myStats.PositionsEvaluated = 0;
-        myStats.BranchesPrunned = 0;
+        myStats.BranchesPruned = 0;
         myStats.Transpositions = 0;
 
         Move move = Move.NullMove;
@@ -147,7 +153,7 @@ public class MyBot : IChessBot
 
             if (alpha >= beta)
             {
-                myStats.BranchesPrunned++;
+                myStats.BranchesPruned++;
                 break;
             }
         }
@@ -163,21 +169,69 @@ public class MyBot : IChessBot
         return bestEval;
     }
 
-    int Evaluate(Board board)
+    public int Evaluate(Board board)
     {
-        int eval = 0;
+        int eval = 10;
         int side = board.IsWhiteToMove ? 1 : -1;
+
+        int totalPieceEval = 0;
 
         for (PieceType i = PieceType.Pawn; i <= PieceType.King; i++)
         {
-            eval += board.GetPieceList(i, true).Count * pieceValues[(int)i] * side;
-            eval -= board.GetPieceList(i, false).Count * pieceValues[(int)i] * side;
+            int w = board.GetPieceList(i, true).Count * pieceValues[(int)i];
+            eval += w * side;
+
+            int b = board.GetPieceList(i, false).Count * pieceValues[(int)i];
+            eval -= b * side;
+
+            totalPieceEval += w + b;
         }
 
-        eval += board.GetLegalMoves().Length * 2;
-        board.ForceSkipTurn();
-        eval -= board.GetLegalMoves().Length * 2;
-        board.UndoSkipTurn();
+        // endgame bo 1 ob totalPieceEval 42250 in 0 ob 43250 vmes bo linearno
+        float middlegameWeight = Math.Clamp((totalPieceEval - 42250) / 1000.0f, 0.0f, 1.0f);
+        float endgameWeight = 1.0f - middlegameWeight;
+
+        if (middlegameWeight > 0.0f)
+        for (int i = 0; i < 2; i++)
+        {
+            bool white = i == 0 ? board.IsWhiteToMove : !board.IsWhiteToMove;
+            int side2 = i == 0 ? 1 : -1;
+
+            ulong pawns = board.GetPieceBitboard(PieceType.Pawn, white);
+            int add = (int)(20 * side2 * middlegameWeight);
+            if ((pawns & 0b00000000_00000000_00000000_00010000_00000000_00000000_00000000_00000000) > 0) eval += add;
+            if ((pawns & 0b00000000_00000000_00000000_00001000_00000000_00000000_00000000_00000000) > 0) eval += add;
+            if ((pawns & 0b00000000_00000000_00000000_00000000_00010000_00000000_00000000_00000000) > 0) eval += add;
+            if ((pawns & 0b00000000_00000000_00000000_00000000_00001000_00000000_00000000_00000000) > 0) eval += add;
+        }
+        
+
+        if (endgameWeight > 0.0f)
+        {
+            PieceList pawnList = board.GetPieceList(PieceType.Pawn, true);
+            foreach (Piece piece in pawnList)
+                eval += (int)((piece.Square.Rank - 3) * 5 * endgameWeight * side);
+
+            pawnList = board.GetPieceList(PieceType.Pawn, false);
+            foreach (Piece piece in pawnList)
+                eval -= (int)((4 - piece.Square.Rank) * 5 * endgameWeight * side);
+        }
+
+
+        Square whiteKing = board.GetKingSquare(true);
+        Square blackKing = board.GetKingSquare(false);
+
+        float wkdistToCenter = Math.Abs(3.5f - whiteKing.Rank) + Math.Abs(3.5f - whiteKing.File);
+        eval -= (int)(wkdistToCenter * 5 * side * (endgameWeight * 2f - 1f));
+
+        float bkdistToCenter = Math.Abs(3.5f - blackKing.Rank) + Math.Abs(3.5f - blackKing.File);
+        eval += (int)(bkdistToCenter * 5 * side * (endgameWeight * 2f - 1f));
+
+
+        //eval += board.GetLegalMoves().Length * 2;
+        //board.ForceSkipTurn();
+        //eval -= board.GetLegalMoves().Length * 2;
+        //board.UndoSkipTurn();
 
         myStats.PositionsEvaluated++;
         return eval;

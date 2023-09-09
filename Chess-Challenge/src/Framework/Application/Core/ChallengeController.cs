@@ -31,8 +31,8 @@ namespace ChessChallenge.Application
             public double TimeStarted;
             public int PositionsEvaluated;
             public int PositionsEvaluatedCurrent;
-            public int BranchesPrunned;
-            public int BranchesPrunnedCurrent;
+            public int BranchesPruned;
+            public int BranchesPrunedCurrent;
             public int Transpositions;
             public int TranspositionsCurrent;
             public int DepthSearched;
@@ -184,7 +184,7 @@ namespace ChessChallenge.Application
                     else myStats.ThinkingTimeAvg = 0.9f * myStats.ThinkingTimeAvg + 0.1f * myStats.ThinkingTime;
 
                     myStats.PositionsEvaluatedCurrent = myStats.PositionsEvaluated;
-                    myStats.BranchesPrunnedCurrent = myStats.BranchesPrunned;
+                    myStats.BranchesPrunedCurrent = myStats.BranchesPruned;
                     myStats.TranspositionsCurrent = myStats.Transpositions;
                     myStats.DepthSearchedCurrent = myStats.DepthSearched;
                     myStats.EvaluationCurrent = myStats.Evaluation;

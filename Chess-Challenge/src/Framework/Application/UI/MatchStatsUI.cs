@@ -30,7 +30,7 @@ namespace ChessChallenge.Application
                 DrawNextText($"{controller.myStats.ThinkingTime}ms   (avg {(int)controller.myStats.ThinkingTimeAvg}ms)", regularFontSize, col);
                 DrawNextText($"Time: {(int)(Raylib.GetTime() - controller.myStats.TimeStarted)}s", regularFontSize, col);
                 DrawNextText($"Positions Evaluated: {controller.myStats.PositionsEvaluatedCurrent}", regularFontSize, col);
-                DrawNextText($"Branches Prunned: {controller.myStats.BranchesPrunnedCurrent}", regularFontSize, col);
+                DrawNextText($"Branches Pruned: {controller.myStats.BranchesPrunedCurrent}", regularFontSize, col);
                 DrawNextText($"Transpositions: {controller.myStats.TranspositionsCurrent}", regularFontSize, col);
                 DrawNextText($"Depth Searched: {controller.myStats.DepthSearchedCurrent}", regularFontSize, col);
                 DrawNextText($"Evaluation: {controller.myStats.EvaluationCurrent}", regularFontSize, col);
