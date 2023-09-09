@@ -60,7 +60,6 @@ namespace ChessChallenge.Application
 
             Raylib.CloseWindow();
 
-            mainController.Release();
             UIHelper.Release();
         }
 
@@ -124,6 +123,7 @@ namespace ChessChallenge.Application
                 ChallengeController c = new();
                 mtChallangeControllers.Add(c);
                 c.isPlayingMt = true;
+                c.mtStartFenIndex = 1000 / 12 * (i + 1);
                 c.StartNewBotMatch(ChallengeController.PlayerType.MyBot, ChallengeController.PlayerType.EvilBot);
             }
         }
@@ -132,8 +132,6 @@ namespace ChessChallenge.Application
         {
             if (playingMt)
                 Console.WriteLine("stopped playing mt");
-
-            mtChallangeControllers.ForEach(c => c.Release());
 
             mtChallangeControllers.Clear();
         }

@@ -22,6 +22,7 @@ namespace ChessChallenge.Application
         }
 
         public bool isPlayingMt = false;
+        public int mtStartFenIndex = 0;
 
         public class MyStats
         {
@@ -96,6 +97,11 @@ namespace ChessChallenge.Application
             StartNewGame(PlayerType.Human, PlayerType.MyBot);
         }
 
+        ~ChallengeController()
+        {
+            boardUI.Release();
+        }
+
         public void StartNewGame(PlayerType whiteType, PlayerType blackType)
         {
             // End any ongoing game
@@ -115,6 +121,7 @@ namespace ChessChallenge.Application
             board = new Board();
             bool isGameWithHuman = whiteType is PlayerType.Human || blackType is PlayerType.Human;
             int fenIndex = isGameWithHuman ? 0 : botMatchGameIndex / 2;
+            if (isPlayingMt) fenIndex = (fenIndex + mtStartFenIndex) % botMatchStartFens.Length;
             board.LoadPosition(botMatchStartFens[fenIndex]);
 
             // Player Setup
@@ -493,11 +500,6 @@ namespace ChessChallenge.Application
             public int NumIllegalMoves;
 
             public BotMatchStats(string name) => BotName = name;
-        }
-
-        public void Release()
-        {
-            boardUI.Release();
         }
     }
 }
