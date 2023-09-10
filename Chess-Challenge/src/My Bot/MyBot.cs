@@ -12,12 +12,10 @@ public class MyBot : IChessBot
     // TODO:
     // searcha se naprej ce so na voljo captures
     // veliko boljsi evaluation:
-    // - bolj pazi na kralja
-    // - v endgameu daj kmete naprej
+    // - bolj pazi na kralja (castle, preveri napade)
     // - doubled, blocked, isolated pawns
-    // - center control
     // mogoce probi nazaj dobit v tt lower in upper bound
-    // tempo je izi dobit na njemu
+    // simplificira naj na koncu ce vodi
 
     int[] pieceValues = { 0, 100, 320, 330, 500, 900, 20000 };
 
@@ -203,6 +201,17 @@ public class MyBot : IChessBot
             if ((pawns & 0b00000000_00000000_00000000_00001000_00000000_00000000_00000000_00000000) > 0) eval += add;
             if ((pawns & 0b00000000_00000000_00000000_00000000_00010000_00000000_00000000_00000000) > 0) eval += add;
             if ((pawns & 0b00000000_00000000_00000000_00000000_00001000_00000000_00000000_00000000) > 0) eval += add;
+
+            // za podvojene kmete na istem filu
+            add /= 2;
+            if (BitOperations.PopCount(pawns & 0x8080808080808080) > 1) eval -= add;
+            if (BitOperations.PopCount(pawns & 0x4040404040404040) > 1) eval -= add;
+            if (BitOperations.PopCount(pawns & 0x2020202020202020) > 1) eval -= add;
+            if (BitOperations.PopCount(pawns & 0x1010101010101010) > 1) eval -= add;
+            if (BitOperations.PopCount(pawns & 0x0808080808080808) > 1) eval -= add;
+            if (BitOperations.PopCount(pawns & 0x0404040404040404) > 1) eval -= add;
+            if (BitOperations.PopCount(pawns & 0x0202020202020202) > 1) eval -= add;
+            if (BitOperations.PopCount(pawns & 0x0101010101010101) > 1) eval -= add;
         }
         
 
@@ -227,11 +236,14 @@ public class MyBot : IChessBot
         float bkdistToCenter = Math.Abs(3.5f - blackKing.Rank) + Math.Abs(3.5f - blackKing.File);
         eval += (int)(bkdistToCenter * 5 * side * (endgameWeight * 2f - 1f));
 
+        // TODO: tukaj lahko naredis ubistvu za vse robove ne samo za zacetne pozicije
+        ulong knights = board.GetPieceBitboard(PieceType.Knight, true);
+        if ((knights & 0b00000000_00000000_00000000_00000000_00000000_00000000_00000000_00000010) > 0) eval -= 15 * side;
+        if ((knights & 0b00000000_00000000_00000000_00000000_00000000_00000000_00000000_01000000) > 0) eval -= 15 * side;
+        knights = board.GetPieceBitboard(PieceType.Knight, false);
+        if ((knights & 0b00000010_00000000_00000000_00000000_00000000_00000000_00000000_00000000) > 0) eval += 15 * side;
+        if ((knights & 0b01000000_00000000_00000000_00000000_00000000_00000000_00000000_00000000) > 0) eval += 15 * side;
 
-        //eval += board.GetLegalMoves().Length * 2;
-        //board.ForceSkipTurn();
-        //eval -= board.GetLegalMoves().Length * 2;
-        //board.UndoSkipTurn();
 
         myStats.PositionsEvaluated++;
         return eval;
@@ -243,11 +255,12 @@ public class MyBot : IChessBot
 
         for (int i = 0; i < moves.Length; i++)
         {
-            if (moves[i].IsPromotion || moves[i].IsCapture)
+            if (moves[i].IsCapture || moves[i].IsPromotion)
             {
-                Move m = moves[j];
-                moves[j] = moves[i];
-                moves[i] = m;
+                (moves[i], moves[j]) = (moves[j], moves[i]);
+                //Move m = moves[j];
+                //moves[j] = moves[i];
+                //moves[i] = m;
                 j++;
             }
         }
