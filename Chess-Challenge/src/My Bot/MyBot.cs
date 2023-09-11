@@ -212,6 +212,17 @@ public class MyBot : IChessBot
             if (BitOperations.PopCount(pawns & 0x0404040404040404) > 1) eval -= add;
             if (BitOperations.PopCount(pawns & 0x0202020202020202) > 1) eval -= add;
             if (BitOperations.PopCount(pawns & 0x0101010101010101) > 1) eval -= add;
+
+            // izolirani kmetje
+            if (BitOperations.PopCount(pawns & 0b11000000_11000000_11000000_11000000_11000000_11000000_11000000_11000000) == 1) eval -= add;
+            if (BitOperations.PopCount(pawns & 0b11100000_11100000_11100000_11100000_11100000_11100000_11100000_11100000) == 1) eval -= add;
+            if (BitOperations.PopCount(pawns & 0b01110000_01110000_01110000_01110000_01110000_01110000_01110000_01110000) == 1) eval -= add;
+            if (BitOperations.PopCount(pawns & 0b00111000_00111000_00111000_00111000_00111000_00111000_00111000_00111000) == 1) eval -= add;
+            if (BitOperations.PopCount(pawns & 0b00011100_00011100_00011100_00011100_00011100_00011100_00011100_00011100) == 1) eval -= add;
+            if (BitOperations.PopCount(pawns & 0b00001110_00001110_00001110_00001110_00001110_00001110_00001110_00001110) == 1) eval -= add;
+            if (BitOperations.PopCount(pawns & 0b00000111_00000111_00000111_00000111_00000111_00000111_00000111_00000111) == 1) eval -= add;
+            if (BitOperations.PopCount(pawns & 0b00000011_00000011_00000011_00000011_00000011_00000011_00000011_00000011) == 1) eval -= add;
+
         }
         
 
@@ -239,8 +250,8 @@ public class MyBot : IChessBot
         eval -= 15 * side * BitOperations.PopCount(board.GetPieceBitboard(PieceType.Knight, true)  & 0b11111111_10000001_10000001_10000001_10000001_10000001_10000001_11111111);
         eval += 15 * side * BitOperations.PopCount(board.GetPieceBitboard(PieceType.Knight, false) & 0b11111111_10000001_10000001_10000001_10000001_10000001_10000001_11111111);
 
-        eval -= 10 * side * BitOperations.PopCount(board.GetPieceBitboard(PieceType.Bishop, true)  & 0b00000000_00000000_00000000_00000000_00000000_00000000_00000000_11111111);
-        eval += 10 * side * BitOperations.PopCount(board.GetPieceBitboard(PieceType.Bishop, false) & 0b11111111_00000000_00000000_00000000_00000000_00000000_00000000_00000000);
+        eval -= 12 * side * BitOperations.PopCount(board.GetPieceBitboard(PieceType.Bishop, true)  & 0b00000000_00000000_00000000_00000000_00000000_00000000_00000000_11111111);
+        eval += 12 * side * BitOperations.PopCount(board.GetPieceBitboard(PieceType.Bishop, false) & 0b11111111_00000000_00000000_00000000_00000000_00000000_00000000_00000000);
 
         myStats.PositionsEvaluated++;
         return eval;
