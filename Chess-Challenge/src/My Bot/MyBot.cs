@@ -226,24 +226,21 @@ public class MyBot : IChessBot
                 eval -= (int)((4 - piece.Square.Rank) * 5 * endgameWeight * side);
         }
 
+        void AddKingDistToCenter(Square square, int add)
+        {
+            float distToCenter = Math.Abs(3.5f - square.Rank) + Math.Abs(3.5f - square.File);
+            eval -= (int)(distToCenter * 5 * add * (endgameWeight * 2f - 1f));
+        }
 
-        Square whiteKing = board.GetKingSquare(true);
-        Square blackKing = board.GetKingSquare(false);
+        AddKingDistToCenter(board.GetKingSquare(board.IsWhiteToMove), 1);
+        AddKingDistToCenter(board.GetKingSquare(!board.IsWhiteToMove), -1);
 
-        float wkdistToCenter = Math.Abs(3.5f - whiteKing.Rank) + Math.Abs(3.5f - whiteKing.File);
-        eval -= (int)(wkdistToCenter * 5 * side * (endgameWeight * 2f - 1f));
 
-        float bkdistToCenter = Math.Abs(3.5f - blackKing.Rank) + Math.Abs(3.5f - blackKing.File);
-        eval += (int)(bkdistToCenter * 5 * side * (endgameWeight * 2f - 1f));
+        eval -= 15 * side * BitOperations.PopCount(board.GetPieceBitboard(PieceType.Knight, true)  & 0b11111111_10000001_10000001_10000001_10000001_10000001_10000001_11111111);
+        eval += 15 * side * BitOperations.PopCount(board.GetPieceBitboard(PieceType.Knight, false) & 0b11111111_10000001_10000001_10000001_10000001_10000001_10000001_11111111);
 
-        // TODO: tukaj lahko naredis ubistvu za vse robove ne samo za zacetne pozicije
-        ulong knights = board.GetPieceBitboard(PieceType.Knight, true);
-        if ((knights & 0b00000000_00000000_00000000_00000000_00000000_00000000_00000000_00000010) > 0) eval -= 15 * side;
-        if ((knights & 0b00000000_00000000_00000000_00000000_00000000_00000000_00000000_01000000) > 0) eval -= 15 * side;
-        knights = board.GetPieceBitboard(PieceType.Knight, false);
-        if ((knights & 0b00000010_00000000_00000000_00000000_00000000_00000000_00000000_00000000) > 0) eval += 15 * side;
-        if ((knights & 0b01000000_00000000_00000000_00000000_00000000_00000000_00000000_00000000) > 0) eval += 15 * side;
-
+        eval -= 10 * side * BitOperations.PopCount(board.GetPieceBitboard(PieceType.Bishop, true)  & 0b00000000_00000000_00000000_00000000_00000000_00000000_00000000_11111111);
+        eval += 10 * side * BitOperations.PopCount(board.GetPieceBitboard(PieceType.Bishop, false) & 0b11111111_00000000_00000000_00000000_00000000_00000000_00000000_00000000);
 
         myStats.PositionsEvaluated++;
         return eval;
