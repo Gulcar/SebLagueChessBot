@@ -184,14 +184,12 @@ public class MyBot : IChessBot
                         eval -= add;
 
                 // izolirani kmetje
-                // TODO: tukaj se dogaja da ce so kmeti v vrsti 11100111 potem se 2 krat odsteje ko gleda ..100... in ...001.. vrste v sredini
-                if (BitOperations.PopCount(pawns & 0b11000000_11000000_11000000_11000000_11000000_11000000_11000000_11000000) == 1) eval -= add;
-                if (BitOperations.PopCount(pawns & 0b00000011_00000011_00000011_00000011_00000011_00000011_00000011_00000011) == 1) eval -= add;
                 for (int j = 0; j < 6; j++)
-                    if (BitOperations.PopCount(pawns & 0b11100000_11100000_11100000_11100000_11100000_11100000_11100000_11100000 >> j) == 1)
+                    if ((pawns & 0b01000000_01000000_01000000_01000000_01000000_01000000_01000000_01000000uL >> j) > 0 &&
+                        (pawns & 0b10100000_10100000_10100000_10100000_10100000_10100000_10100000_10100000uL >> j) == 0)
                         eval -= add;
             }
-        
+
         // v endgamu tocke za kmete ki so blizje promociji
         if (endgameWeight > 0.0f)
         {
