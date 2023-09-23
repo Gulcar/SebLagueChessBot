@@ -197,6 +197,7 @@ public class MyBot : IChessBot
 
             ulong pawns = board.GetPieceBitboard(PieceType.Pawn, white);
             int add = (int)(20 * side2 * middlegameWeight);
+            // dodatne tocke za kemete v sredini
             if ((pawns & 0b00000000_00000000_00000000_00010000_00000000_00000000_00000000_00000000) > 0) eval += add;
             if ((pawns & 0b00000000_00000000_00000000_00001000_00000000_00000000_00000000_00000000) > 0) eval += add;
             if ((pawns & 0b00000000_00000000_00000000_00000000_00010000_00000000_00000000_00000000) > 0) eval += add;
@@ -225,7 +226,7 @@ public class MyBot : IChessBot
 
         }
         
-
+        // v endgamu tocke za kmete ki so blizje promociji
         if (endgameWeight > 0.0f)
         {
             PieceList pawnList = board.GetPieceList(PieceType.Pawn, true);
@@ -242,16 +243,21 @@ public class MyBot : IChessBot
             float distToCenter = Math.Abs(3.5f - square.Rank) + Math.Abs(3.5f - square.File);
             eval -= (int)(distToCenter * 5 * add * (endgameWeight * 2f - 1f));
         }
-
+        // v endgamu kralja daj blizje sredini, v middlegamu pa stran od sredine
         AddKingDistToCenter(board.GetKingSquare(board.IsWhiteToMove), 1);
         AddKingDistToCenter(board.GetKingSquare(!board.IsWhiteToMove), -1);
 
-
+        // minus za konje ki so na robu
         eval -= 15 * side * BitOperations.PopCount(board.GetPieceBitboard(PieceType.Knight, true)  & 0b11111111_10000001_10000001_10000001_10000001_10000001_10000001_11111111);
         eval += 15 * side * BitOperations.PopCount(board.GetPieceBitboard(PieceType.Knight, false) & 0b11111111_10000001_10000001_10000001_10000001_10000001_10000001_11111111);
 
+        // minus za laufarje ki so na zacetku
         eval -= 12 * side * BitOperations.PopCount(board.GetPieceBitboard(PieceType.Bishop, true)  & 0b00000000_00000000_00000000_00000000_00000000_00000000_00000000_11111111);
         eval += 12 * side * BitOperations.PopCount(board.GetPieceBitboard(PieceType.Bishop, false) & 0b11111111_00000000_00000000_00000000_00000000_00000000_00000000_00000000);
+
+        // minus za zgodnjo kraljico
+        if ((board.GetPieceBitboard(PieceType.Queen, true)  & 0b11111111_11111111_11111111_11111111_11111111_11111111_00000000_00000000) > 0) eval -= (int)(10 * side * middlegameWeight);
+        if ((board.GetPieceBitboard(PieceType.Queen, false) & 0b00000000_00000000_11111111_11111111_11111111_11111111_11111111_11111111) > 0) eval += (int)(10 * side * middlegameWeight);
 
         myStats.PositionsEvaluated++;
         return eval;
