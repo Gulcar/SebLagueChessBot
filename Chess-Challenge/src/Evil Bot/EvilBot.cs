@@ -3,6 +3,7 @@ using System;
 using System.Numerics;
 using System.Collections.Generic;
 using System.Linq;
+using static ChessChallenge.Application.ChallengeController;
 
 public class EvilBot : IChessBot
 {
@@ -164,13 +165,36 @@ public class EvilBot : IChessBot
 
             ulong pawns = board.GetPieceBitboard(PieceType.Pawn, white);
             int add = (int)(20 * side2 * middlegameWeight);
+            // dodatne tocke za kemete v sredini
             if ((pawns & 0b00000000_00000000_00000000_00010000_00000000_00000000_00000000_00000000) > 0) eval += add;
             if ((pawns & 0b00000000_00000000_00000000_00001000_00000000_00000000_00000000_00000000) > 0) eval += add;
             if ((pawns & 0b00000000_00000000_00000000_00000000_00010000_00000000_00000000_00000000) > 0) eval += add;
             if ((pawns & 0b00000000_00000000_00000000_00000000_00001000_00000000_00000000_00000000) > 0) eval += add;
+
+            // za podvojene kmete na istem filu
+            add /= 2;
+            if (BitOperations.PopCount(pawns & 0x8080808080808080) > 1) eval -= add;
+            if (BitOperations.PopCount(pawns & 0x4040404040404040) > 1) eval -= add;
+            if (BitOperations.PopCount(pawns & 0x2020202020202020) > 1) eval -= add;
+            if (BitOperations.PopCount(pawns & 0x1010101010101010) > 1) eval -= add;
+            if (BitOperations.PopCount(pawns & 0x0808080808080808) > 1) eval -= add;
+            if (BitOperations.PopCount(pawns & 0x0404040404040404) > 1) eval -= add;
+            if (BitOperations.PopCount(pawns & 0x0202020202020202) > 1) eval -= add;
+            if (BitOperations.PopCount(pawns & 0x0101010101010101) > 1) eval -= add;
+
+            // izolirani kmetje
+            if (BitOperations.PopCount(pawns & 0b11000000_11000000_11000000_11000000_11000000_11000000_11000000_11000000) == 1) eval -= add;
+            if (BitOperations.PopCount(pawns & 0b11100000_11100000_11100000_11100000_11100000_11100000_11100000_11100000) == 1) eval -= add;
+            if (BitOperations.PopCount(pawns & 0b01110000_01110000_01110000_01110000_01110000_01110000_01110000_01110000) == 1) eval -= add;
+            if (BitOperations.PopCount(pawns & 0b00111000_00111000_00111000_00111000_00111000_00111000_00111000_00111000) == 1) eval -= add;
+            if (BitOperations.PopCount(pawns & 0b00011100_00011100_00011100_00011100_00011100_00011100_00011100_00011100) == 1) eval -= add;
+            if (BitOperations.PopCount(pawns & 0b00001110_00001110_00001110_00001110_00001110_00001110_00001110_00001110) == 1) eval -= add;
+            if (BitOperations.PopCount(pawns & 0b00000111_00000111_00000111_00000111_00000111_00000111_00000111_00000111) == 1) eval -= add;
+            if (BitOperations.PopCount(pawns & 0b00000011_00000011_00000011_00000011_00000011_00000011_00000011_00000011) == 1) eval -= add;
+
         }
 
-
+        // v endgamu tocke za kmete ki so blizje promociji
         if (endgameWeight > 0.0f)
         {
             PieceList pawnList = board.GetPieceList(PieceType.Pawn, true);
@@ -182,15 +206,26 @@ public class EvilBot : IChessBot
                 eval -= (int)((4 - piece.Square.Rank) * 5 * endgameWeight * side);
         }
 
+        void AddKingDistToCenter(Square square, int add)
+        {
+            float distToCenter = Math.Abs(3.5f - square.Rank) + Math.Abs(3.5f - square.File);
+            eval -= (int)(distToCenter * 5 * add * (endgameWeight * 2f - 1f));
+        }
+        // v endgamu kralja daj blizje sredini, v middlegamu pa stran od sredine
+        AddKingDistToCenter(board.GetKingSquare(board.IsWhiteToMove), 1);
+        AddKingDistToCenter(board.GetKingSquare(!board.IsWhiteToMove), -1);
 
-        Square whiteKing = board.GetKingSquare(true);
-        Square blackKing = board.GetKingSquare(false);
+        // minus za konje ki so na robu
+        eval -= 15 * side * BitOperations.PopCount(board.GetPieceBitboard(PieceType.Knight, true)  & 0b11111111_10000001_10000001_10000001_10000001_10000001_10000001_11111111);
+        eval += 15 * side * BitOperations.PopCount(board.GetPieceBitboard(PieceType.Knight, false) & 0b11111111_10000001_10000001_10000001_10000001_10000001_10000001_11111111);
 
-        float wkdistToCenter = Math.Abs(3.5f - whiteKing.Rank) + Math.Abs(3.5f - whiteKing.File);
-        eval -= (int)(wkdistToCenter * 5 * side * (endgameWeight * 2f - 1f));
+        // minus za laufarje ki so na zacetku
+        eval -= 12 * side * BitOperations.PopCount(board.GetPieceBitboard(PieceType.Bishop, true)  & 0b00000000_00000000_00000000_00000000_00000000_00000000_00000000_11111111);
+        eval += 12 * side * BitOperations.PopCount(board.GetPieceBitboard(PieceType.Bishop, false) & 0b11111111_00000000_00000000_00000000_00000000_00000000_00000000_00000000);
 
-        float bkdistToCenter = Math.Abs(3.5f - blackKing.Rank) + Math.Abs(3.5f - blackKing.File);
-        eval += (int)(bkdistToCenter * 5 * side * (endgameWeight * 2f - 1f));
+        // minus za zgodnjo kraljico
+        if ((board.GetPieceBitboard(PieceType.Queen, true)  & 0b11111111_11111111_11111111_11111111_11111111_11111111_00000000_00000000) > 0) eval -= (int)(10 * side * middlegameWeight);
+        if ((board.GetPieceBitboard(PieceType.Queen, false) & 0b00000000_00000000_11111111_11111111_11111111_11111111_11111111_11111111) > 0) eval += (int)(10 * side * middlegameWeight);
 
         return eval;
     }

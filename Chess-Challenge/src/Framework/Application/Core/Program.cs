@@ -138,7 +138,7 @@ namespace ChessChallenge.Application
         {
             StopMyBotvsEvilBotMT();
 
-            const int numGames = 12;
+            const int numGames = 10;
             for (int i = 0; i < numGames; i++)
             {
                 ChallengeController c = new();

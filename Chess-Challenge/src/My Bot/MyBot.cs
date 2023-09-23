@@ -26,6 +26,8 @@ public class MyBot : IChessBot
         public uint Key;
         public byte Depth;
         public int Eval;
+        /// <summary> 0=exact, 1=lowerbound, 2=upperbound </summary>
+        public byte Type;
     }
 
     const int ttSize = 21_333_333; // 256_000_000 / sizeof(TTEntry)(12);
@@ -117,11 +119,24 @@ public class MyBot : IChessBot
             ttEntry.Depth >= depth)
         {
             myStats.Transpositions++;
-            return ttEntry.Eval;
+
+            // EXACT
+            if (ttEntry.Type == 0)
+                return ttEntry.Eval;
+            // LOWERBOUND
+            else if (ttEntry.Type == 1)
+                alpha = Math.Max(alpha, ttEntry.Eval);
+            // UPPERBOUND
+            else
+                beta = Math.Min(beta, ttEntry.Eval);
+
+            if (alpha >= beta)
+                return ttEntry.Eval;
         }
 
         if (board.IsInCheckmate())
-            return -infinity;
+            // tukaj depth odstejemo ker vecji kot je depth prej je mat (depth se v globino zmansuje)
+            return -infinity + 1000 - depth;
 
         if (board.IsDraw())
             return 0;
@@ -156,17 +171,23 @@ public class MyBot : IChessBot
             }
         }
 
-        if (bestEval > alphaOg && bestEval < beta)
-        {
-            ttEntry.Key = (uint)board.ZobristKey;
-            ttEntry.Depth = (byte)depth;
-            ttEntry.Eval = bestEval;
-            transpositionTable[ttIndex] = ttEntry;
-        }
+        ttEntry.Key = (uint)board.ZobristKey;
+        ttEntry.Depth = (byte)depth;
+        ttEntry.Eval = bestEval;
+
+        if (bestEval <= alphaOg)
+            ttEntry.Type = 2; // UPPERBOUND
+        else if (bestEval >= beta)
+            ttEntry.Type = 1; // LOWERBOUND
+        else
+            ttEntry.Type = 0; // EXACT
+
+        transpositionTable[ttIndex] = ttEntry;
 
         return bestEval;
     }
 
+    // https://www.chessprogramming.org/Evaluation
     public int Evaluate(Board board)
     {
         int eval = 10;
@@ -256,8 +277,8 @@ public class MyBot : IChessBot
         eval += 12 * side * BitOperations.PopCount(board.GetPieceBitboard(PieceType.Bishop, false) & 0b11111111_00000000_00000000_00000000_00000000_00000000_00000000_00000000);
 
         // minus za zgodnjo kraljico
-        if ((board.GetPieceBitboard(PieceType.Queen, true)  & 0b11111111_11111111_11111111_11111111_11111111_11111111_00000000_00000000) > 0) eval -= (int)(10 * side * middlegameWeight);
-        if ((board.GetPieceBitboard(PieceType.Queen, false) & 0b00000000_00000000_11111111_11111111_11111111_11111111_11111111_11111111) > 0) eval += (int)(10 * side * middlegameWeight);
+        if ((board.GetPieceBitboard(PieceType.Queen, true)  & 0b11111111_11111111_11111111_11111111_11111111_11111111_00000000_00000000) > 0) eval -= (int)(20 * side * middlegameWeight);
+        if ((board.GetPieceBitboard(PieceType.Queen, false) & 0b00000000_00000000_11111111_11111111_11111111_11111111_11111111_11111111) > 0) eval += (int)(20 * side * middlegameWeight);
 
         myStats.PositionsEvaluated++;
         return eval;
