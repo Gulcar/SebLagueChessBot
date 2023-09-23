@@ -20,8 +20,6 @@ namespace ChessChallenge.Application
 
         public static void Main()
         {
-            //TestEvaluation();
-
             Vector2 loadedWindowSize = GetSavedWindowSize();
             int screenWidth = (int)loadedWindowSize.X;
             int screenHeight = (int)loadedWindowSize.Y;
@@ -116,15 +114,17 @@ namespace ChessChallenge.Application
             File.WriteAllText(FileHelper.PrefsFilePath, isBigWindow ? "1" : "0");
         }
 
-        static void TestEvaluation()
+        public static void TestEvaluation()
         {
             ChallengeController.MyStats stats = new();
-            MyBot myBot = new(stats);
+            MyBot myBot = new();
 
             while (true)
             {
+                Console.Write("fen: ");
                 string? input = Console.ReadLine();
-                if (input == null) System.Environment.Exit(1);
+                if (input == null || input == "") continue;
+                if (input == "q" || input == "quit") break;
 
                 Chess.Board cboard = new();
                 cboard.LoadPosition(input);

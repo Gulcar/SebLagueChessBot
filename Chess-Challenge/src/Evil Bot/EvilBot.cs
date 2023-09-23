@@ -3,7 +3,6 @@ using System;
 using System.Numerics;
 using System.Collections.Generic;
 using System.Linq;
-using static ChessChallenge.Application.ChallengeController;
 
 public class EvilBot : IChessBot
 {
@@ -16,6 +15,8 @@ public class EvilBot : IChessBot
         public uint Key;
         public byte Depth;
         public int Eval;
+        /// <summary> 0=exact, 1=lowerbound, 2=upperbound </summary>
+        public byte Type;
     }
 
     const int ttSize = 21_333_333; // 256_000_000 / sizeof(TTEntry)(12);
@@ -86,11 +87,23 @@ public class EvilBot : IChessBot
         if (ttEntry.Key == (uint)board.ZobristKey &&
             ttEntry.Depth >= depth)
         {
-            return ttEntry.Eval;
+            // EXACT
+            if (ttEntry.Type == 0)
+                return ttEntry.Eval;
+            // LOWERBOUND
+            else if (ttEntry.Type == 1)
+                alpha = Math.Max(alpha, ttEntry.Eval);
+            // UPPERBOUND
+            else
+                beta = Math.Min(beta, ttEntry.Eval);
+
+            if (alpha >= beta)
+                return ttEntry.Eval;
         }
 
         if (board.IsInCheckmate())
-            return -infinity;
+            // tukaj depth odstejemo ker vecji kot je depth prej je mat (depth se v globino zmansuje)
+            return -infinity + 1000 - depth;
 
         if (board.IsDraw())
             return 0;
@@ -124,17 +137,23 @@ public class EvilBot : IChessBot
             }
         }
 
-        if (bestEval > alphaOg && bestEval < beta)
-        {
-            ttEntry.Key = (uint)board.ZobristKey;
-            ttEntry.Depth = (byte)depth;
-            ttEntry.Eval = bestEval;
-            transpositionTable[ttIndex] = ttEntry;
-        }
+        ttEntry.Key = (uint)board.ZobristKey;
+        ttEntry.Depth = (byte)depth;
+        ttEntry.Eval = bestEval;
+
+        if (bestEval <= alphaOg)
+            ttEntry.Type = 2; // UPPERBOUND
+        else if (bestEval >= beta)
+            ttEntry.Type = 1; // LOWERBOUND
+        else
+            ttEntry.Type = 0; // EXACT
+
+        transpositionTable[ttIndex] = ttEntry;
 
         return bestEval;
     }
 
+    // https://www.chessprogramming.org/Evaluation
     public int Evaluate(Board board)
     {
         int eval = 10;
@@ -158,41 +177,41 @@ public class EvilBot : IChessBot
         float endgameWeight = 1.0f - middlegameWeight;
 
         if (middlegameWeight > 0.0f)
-        for (int i = 0; i < 2; i++)
-        {
-            bool white = i == 0 ? board.IsWhiteToMove : !board.IsWhiteToMove;
-            int side2 = i == 0 ? 1 : -1;
+            for (int i = 0; i < 2; i++)
+            {
+                bool white = i == 0 ? board.IsWhiteToMove : !board.IsWhiteToMove;
+                int side2 = i == 0 ? 1 : -1;
 
-            ulong pawns = board.GetPieceBitboard(PieceType.Pawn, white);
-            int add = (int)(20 * side2 * middlegameWeight);
-            // dodatne tocke za kemete v sredini
-            if ((pawns & 0b00000000_00000000_00000000_00010000_00000000_00000000_00000000_00000000) > 0) eval += add;
-            if ((pawns & 0b00000000_00000000_00000000_00001000_00000000_00000000_00000000_00000000) > 0) eval += add;
-            if ((pawns & 0b00000000_00000000_00000000_00000000_00010000_00000000_00000000_00000000) > 0) eval += add;
-            if ((pawns & 0b00000000_00000000_00000000_00000000_00001000_00000000_00000000_00000000) > 0) eval += add;
+                ulong pawns = board.GetPieceBitboard(PieceType.Pawn, white);
+                int add = (int)(20 * side2 * middlegameWeight);
+                // dodatne tocke za kemete v sredini
+                if ((pawns & 0b00000000_00000000_00000000_00010000_00000000_00000000_00000000_00000000) > 0) eval += add;
+                if ((pawns & 0b00000000_00000000_00000000_00001000_00000000_00000000_00000000_00000000) > 0) eval += add;
+                if ((pawns & 0b00000000_00000000_00000000_00000000_00010000_00000000_00000000_00000000) > 0) eval += add;
+                if ((pawns & 0b00000000_00000000_00000000_00000000_00001000_00000000_00000000_00000000) > 0) eval += add;
 
-            // za podvojene kmete na istem filu
-            add /= 2;
-            if (BitOperations.PopCount(pawns & 0x8080808080808080) > 1) eval -= add;
-            if (BitOperations.PopCount(pawns & 0x4040404040404040) > 1) eval -= add;
-            if (BitOperations.PopCount(pawns & 0x2020202020202020) > 1) eval -= add;
-            if (BitOperations.PopCount(pawns & 0x1010101010101010) > 1) eval -= add;
-            if (BitOperations.PopCount(pawns & 0x0808080808080808) > 1) eval -= add;
-            if (BitOperations.PopCount(pawns & 0x0404040404040404) > 1) eval -= add;
-            if (BitOperations.PopCount(pawns & 0x0202020202020202) > 1) eval -= add;
-            if (BitOperations.PopCount(pawns & 0x0101010101010101) > 1) eval -= add;
+                // za podvojene kmete na istem filu
+                add /= 2;
+                if (BitOperations.PopCount(pawns & 0x8080808080808080) > 1) eval -= add;
+                if (BitOperations.PopCount(pawns & 0x4040404040404040) > 1) eval -= add;
+                if (BitOperations.PopCount(pawns & 0x2020202020202020) > 1) eval -= add;
+                if (BitOperations.PopCount(pawns & 0x1010101010101010) > 1) eval -= add;
+                if (BitOperations.PopCount(pawns & 0x0808080808080808) > 1) eval -= add;
+                if (BitOperations.PopCount(pawns & 0x0404040404040404) > 1) eval -= add;
+                if (BitOperations.PopCount(pawns & 0x0202020202020202) > 1) eval -= add;
+                if (BitOperations.PopCount(pawns & 0x0101010101010101) > 1) eval -= add;
 
-            // izolirani kmetje
-            if (BitOperations.PopCount(pawns & 0b11000000_11000000_11000000_11000000_11000000_11000000_11000000_11000000) == 1) eval -= add;
-            if (BitOperations.PopCount(pawns & 0b11100000_11100000_11100000_11100000_11100000_11100000_11100000_11100000) == 1) eval -= add;
-            if (BitOperations.PopCount(pawns & 0b01110000_01110000_01110000_01110000_01110000_01110000_01110000_01110000) == 1) eval -= add;
-            if (BitOperations.PopCount(pawns & 0b00111000_00111000_00111000_00111000_00111000_00111000_00111000_00111000) == 1) eval -= add;
-            if (BitOperations.PopCount(pawns & 0b00011100_00011100_00011100_00011100_00011100_00011100_00011100_00011100) == 1) eval -= add;
-            if (BitOperations.PopCount(pawns & 0b00001110_00001110_00001110_00001110_00001110_00001110_00001110_00001110) == 1) eval -= add;
-            if (BitOperations.PopCount(pawns & 0b00000111_00000111_00000111_00000111_00000111_00000111_00000111_00000111) == 1) eval -= add;
-            if (BitOperations.PopCount(pawns & 0b00000011_00000011_00000011_00000011_00000011_00000011_00000011_00000011) == 1) eval -= add;
+                // izolirani kmetje
+                if (BitOperations.PopCount(pawns & 0b11000000_11000000_11000000_11000000_11000000_11000000_11000000_11000000) == 1) eval -= add;
+                if (BitOperations.PopCount(pawns & 0b11100000_11100000_11100000_11100000_11100000_11100000_11100000_11100000) == 1) eval -= add;
+                if (BitOperations.PopCount(pawns & 0b01110000_01110000_01110000_01110000_01110000_01110000_01110000_01110000) == 1) eval -= add;
+                if (BitOperations.PopCount(pawns & 0b00111000_00111000_00111000_00111000_00111000_00111000_00111000_00111000) == 1) eval -= add;
+                if (BitOperations.PopCount(pawns & 0b00011100_00011100_00011100_00011100_00011100_00011100_00011100_00011100) == 1) eval -= add;
+                if (BitOperations.PopCount(pawns & 0b00001110_00001110_00001110_00001110_00001110_00001110_00001110_00001110) == 1) eval -= add;
+                if (BitOperations.PopCount(pawns & 0b00000111_00000111_00000111_00000111_00000111_00000111_00000111_00000111) == 1) eval -= add;
+                if (BitOperations.PopCount(pawns & 0b00000011_00000011_00000011_00000011_00000011_00000011_00000011_00000011) == 1) eval -= add;
 
-        }
+            }
 
         // v endgamu tocke za kmete ki so blizje promociji
         if (endgameWeight > 0.0f)
@@ -216,16 +235,16 @@ public class EvilBot : IChessBot
         AddKingDistToCenter(board.GetKingSquare(!board.IsWhiteToMove), -1);
 
         // minus za konje ki so na robu
-        eval -= 15 * side * BitOperations.PopCount(board.GetPieceBitboard(PieceType.Knight, true)  & 0b11111111_10000001_10000001_10000001_10000001_10000001_10000001_11111111);
+        eval -= 15 * side * BitOperations.PopCount(board.GetPieceBitboard(PieceType.Knight, true) & 0b11111111_10000001_10000001_10000001_10000001_10000001_10000001_11111111);
         eval += 15 * side * BitOperations.PopCount(board.GetPieceBitboard(PieceType.Knight, false) & 0b11111111_10000001_10000001_10000001_10000001_10000001_10000001_11111111);
 
         // minus za laufarje ki so na zacetku
-        eval -= 12 * side * BitOperations.PopCount(board.GetPieceBitboard(PieceType.Bishop, true)  & 0b00000000_00000000_00000000_00000000_00000000_00000000_00000000_11111111);
+        eval -= 12 * side * BitOperations.PopCount(board.GetPieceBitboard(PieceType.Bishop, true) & 0b00000000_00000000_00000000_00000000_00000000_00000000_00000000_11111111);
         eval += 12 * side * BitOperations.PopCount(board.GetPieceBitboard(PieceType.Bishop, false) & 0b11111111_00000000_00000000_00000000_00000000_00000000_00000000_00000000);
 
         // minus za zgodnjo kraljico
-        if ((board.GetPieceBitboard(PieceType.Queen, true)  & 0b11111111_11111111_11111111_11111111_11111111_11111111_00000000_00000000) > 0) eval -= (int)(10 * side * middlegameWeight);
-        if ((board.GetPieceBitboard(PieceType.Queen, false) & 0b00000000_00000000_11111111_11111111_11111111_11111111_11111111_11111111) > 0) eval += (int)(10 * side * middlegameWeight);
+        if ((board.GetPieceBitboard(PieceType.Queen, true) & 0b11111111_11111111_11111111_11111111_11111111_11111111_00000000_00000000) > 0) eval -= (int)(20 * side * middlegameWeight);
+        if ((board.GetPieceBitboard(PieceType.Queen, false) & 0b00000000_00000000_11111111_11111111_11111111_11111111_11111111_11111111) > 0) eval += (int)(20 * side * middlegameWeight);
 
         return eval;
     }

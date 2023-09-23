@@ -1,22 +1,11 @@
 ﻿using ChessChallenge.API;
 using System;
 using System.Numerics;
-using System.Collections.Generic;
-using System.Linq;
-
-using ChessChallenge.Application;
-using System.ComponentModel;
+//using System.Collections.Generic;
+//using System.Linq;
 
 public class MyBot : IChessBot
 {
-    // TODO:
-    // searcha se naprej ce so na voljo captures
-    // veliko boljsi evaluation:
-    // - bolj pazi na kralja (castle, preveri napade)
-    // - doubled, blocked, isolated pawns
-    // mogoce probi nazaj dobit v tt lower in upper bound
-    // simplificira naj na koncu ce vodi
-
     int[] pieceValues = { 0, 100, 320, 330, 500, 900, 20000 };
 
     const int infinity = 1_000_000_000;
@@ -24,8 +13,8 @@ public class MyBot : IChessBot
     struct TTEntry
     {
         public uint Key;
-        public byte Depth;
         public int Eval;
+        public byte Depth;
         /// <summary> 0=exact, 1=lowerbound, 2=upperbound </summary>
         public byte Type;
     }
@@ -33,26 +22,13 @@ public class MyBot : IChessBot
     const int ttSize = 21_333_333; // 256_000_000 / sizeof(TTEntry)(12);
     TTEntry[] transpositionTable = new TTEntry[ttSize];
 
-    ChallengeController.MyStats myStats;
-    bool printMoves = false;
-    public MyBot(ChallengeController.MyStats stats)
-    {
-        myStats = stats;
-    }
-
     public Move Think(Board board, Timer timer)
     {
-        myStats.PositionsEvaluated = 0;
-        myStats.BranchesPruned = 0;
-        myStats.Transpositions = 0;
-
         Move move = Move.NullMove;
 
         for (int depth = 1; depth < 256; depth++)
         {
             move = Search(board, depth, move);
-
-            myStats.DepthSearched = depth;
 
             if (timer.MillisecondsElapsedThisTurn > timer.MillisecondsRemaining / 120)
                 break;
@@ -73,9 +49,6 @@ public class MyBot : IChessBot
         int alpha = -infinity;
         int beta = infinity;
 
-        if (printMoves)
-            Console.WriteLine($"\n\npossible moves (depth {depth}):");
-
         if (!prevBest.IsNull)
             SearchMove(prevBest);
 
@@ -88,9 +61,6 @@ public class MyBot : IChessBot
             int eval = -Negamax(board, !white, depth - 1, -beta, -alpha);
             board.UndoMove(m);
 
-            if (printMoves)
-                Console.WriteLine($"{m} -> {eval}");
-
             if (eval > bestEval)
             {
                 bestEval = eval;
@@ -98,12 +68,9 @@ public class MyBot : IChessBot
             }
 
             if (eval > alpha)
-            {
                 alpha = eval;
-            }
         }
 
-        myStats.Evaluation = bestEval;
         return bestMove;
     }
 
@@ -118,8 +85,6 @@ public class MyBot : IChessBot
         if (ttEntry.Key == (uint)board.ZobristKey &&
             ttEntry.Depth >= depth)
         {
-            myStats.Transpositions++;
-
             // EXACT
             if (ttEntry.Type == 0)
                 return ttEntry.Eval;
@@ -155,20 +120,13 @@ public class MyBot : IChessBot
             board.UndoMove(m);
 
             if (eval > bestEval)
-            {
                 bestEval = eval;
-            }
 
             if (eval > alpha)
-            {
                 alpha = eval;
-            }
 
             if (alpha >= beta)
-            {
-                myStats.BranchesPruned++;
                 break;
-            }
         }
 
         ttEntry.Key = (uint)board.ZobristKey;
@@ -211,51 +169,36 @@ public class MyBot : IChessBot
         float endgameWeight = 1.0f - middlegameWeight;
 
         if (middlegameWeight > 0.0f)
-        for (int i = 0; i < 2; i++)
-        {
-            bool white = i == 0 ? board.IsWhiteToMove : !board.IsWhiteToMove;
-            int side2 = i == 0 ? 1 : -1;
+            for (int i = 0; i < 2; i++)
+            {
+                ulong pawns = board.GetPieceBitboard(PieceType.Pawn, i == 0 ? board.IsWhiteToMove : !board.IsWhiteToMove);
+                int add = (int)(20 * middlegameWeight) * (i == 0 ? 1 : -1);
 
-            ulong pawns = board.GetPieceBitboard(PieceType.Pawn, white);
-            int add = (int)(20 * side2 * middlegameWeight);
-            // dodatne tocke za kemete v sredini
-            if ((pawns & 0b00000000_00000000_00000000_00010000_00000000_00000000_00000000_00000000) > 0) eval += add;
-            if ((pawns & 0b00000000_00000000_00000000_00001000_00000000_00000000_00000000_00000000) > 0) eval += add;
-            if ((pawns & 0b00000000_00000000_00000000_00000000_00010000_00000000_00000000_00000000) > 0) eval += add;
-            if ((pawns & 0b00000000_00000000_00000000_00000000_00001000_00000000_00000000_00000000) > 0) eval += add;
+                // dodatne tocke za kemete v sredini
+                eval += BitOperations.PopCount(pawns & 0b00000000_00000000_00000000_00011000_00011000_00000000_00000000_00000000) * add;
 
-            // za podvojene kmete na istem filu
-            add /= 2;
-            if (BitOperations.PopCount(pawns & 0x8080808080808080) > 1) eval -= add;
-            if (BitOperations.PopCount(pawns & 0x4040404040404040) > 1) eval -= add;
-            if (BitOperations.PopCount(pawns & 0x2020202020202020) > 1) eval -= add;
-            if (BitOperations.PopCount(pawns & 0x1010101010101010) > 1) eval -= add;
-            if (BitOperations.PopCount(pawns & 0x0808080808080808) > 1) eval -= add;
-            if (BitOperations.PopCount(pawns & 0x0404040404040404) > 1) eval -= add;
-            if (BitOperations.PopCount(pawns & 0x0202020202020202) > 1) eval -= add;
-            if (BitOperations.PopCount(pawns & 0x0101010101010101) > 1) eval -= add;
+                // za podvojene kmete na istem filu
+                add /= 2;
+                for (int j = 0; j < 8; j++)
+                    if (BitOperations.PopCount(pawns & 0x8080808080808080 >> j) > 1)
+                        eval -= add;
 
-            // izolirani kmetje
-            if (BitOperations.PopCount(pawns & 0b11000000_11000000_11000000_11000000_11000000_11000000_11000000_11000000) == 1) eval -= add;
-            if (BitOperations.PopCount(pawns & 0b11100000_11100000_11100000_11100000_11100000_11100000_11100000_11100000) == 1) eval -= add;
-            if (BitOperations.PopCount(pawns & 0b01110000_01110000_01110000_01110000_01110000_01110000_01110000_01110000) == 1) eval -= add;
-            if (BitOperations.PopCount(pawns & 0b00111000_00111000_00111000_00111000_00111000_00111000_00111000_00111000) == 1) eval -= add;
-            if (BitOperations.PopCount(pawns & 0b00011100_00011100_00011100_00011100_00011100_00011100_00011100_00011100) == 1) eval -= add;
-            if (BitOperations.PopCount(pawns & 0b00001110_00001110_00001110_00001110_00001110_00001110_00001110_00001110) == 1) eval -= add;
-            if (BitOperations.PopCount(pawns & 0b00000111_00000111_00000111_00000111_00000111_00000111_00000111_00000111) == 1) eval -= add;
-            if (BitOperations.PopCount(pawns & 0b00000011_00000011_00000011_00000011_00000011_00000011_00000011_00000011) == 1) eval -= add;
-
-        }
+                // izolirani kmetje
+                // TODO: tukaj se dogaja da ce so kmeti v vrsti 11100111 potem se 2 krat odsteje ko gleda ..100... in ...001.. vrste v sredini
+                if (BitOperations.PopCount(pawns & 0b11000000_11000000_11000000_11000000_11000000_11000000_11000000_11000000) == 1) eval -= add;
+                if (BitOperations.PopCount(pawns & 0b00000011_00000011_00000011_00000011_00000011_00000011_00000011_00000011) == 1) eval -= add;
+                for (int j = 0; j < 6; j++)
+                    if (BitOperations.PopCount(pawns & 0b11100000_11100000_11100000_11100000_11100000_11100000_11100000_11100000 >> j) == 1)
+                        eval -= add;
+            }
         
         // v endgamu tocke za kmete ki so blizje promociji
         if (endgameWeight > 0.0f)
         {
-            PieceList pawnList = board.GetPieceList(PieceType.Pawn, true);
-            foreach (Piece piece in pawnList)
+            foreach (Piece piece in board.GetPieceList(PieceType.Pawn, true))
                 eval += (int)((piece.Square.Rank - 3) * 5 * endgameWeight * side);
 
-            pawnList = board.GetPieceList(PieceType.Pawn, false);
-            foreach (Piece piece in pawnList)
+            foreach (Piece piece in board.GetPieceList(PieceType.Pawn, false))
                 eval -= (int)((4 - piece.Square.Rank) * 5 * endgameWeight * side);
         }
 
@@ -280,7 +223,6 @@ public class MyBot : IChessBot
         if ((board.GetPieceBitboard(PieceType.Queen, true)  & 0b11111111_11111111_11111111_11111111_11111111_11111111_00000000_00000000) > 0) eval -= (int)(20 * side * middlegameWeight);
         if ((board.GetPieceBitboard(PieceType.Queen, false) & 0b00000000_00000000_11111111_11111111_11111111_11111111_11111111_11111111) > 0) eval += (int)(20 * side * middlegameWeight);
 
-        myStats.PositionsEvaluated++;
         return eval;
     }
 
@@ -289,7 +231,6 @@ public class MyBot : IChessBot
         int j = 0;
 
         for (int i = 0; i < moves.Length; i++)
-        {
             if (moves[i].IsCapture || moves[i].IsPromotion)
             {
                 (moves[i], moves[j]) = (moves[j], moves[i]);
@@ -298,6 +239,5 @@ public class MyBot : IChessBot
                 //moves[i] = m;
                 j++;
             }
-        }
     }
 }

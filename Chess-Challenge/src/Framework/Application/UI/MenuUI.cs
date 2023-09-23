@@ -9,7 +9,7 @@ namespace ChessChallenge.Application
     {
         public static void DrawButtons(ChallengeController controller)
         {
-            Vector2 buttonPos = UIHelper.Scale(new Vector2(260, 180));
+            Vector2 buttonPos = UIHelper.Scale(new Vector2(260, 140));
             Vector2 buttonSize = UIHelper.Scale(new Vector2(260, 55));
             float spacing = buttonSize.Y * 1.2f;
             float breakSpacing = spacing * 0.6f;
@@ -19,6 +19,12 @@ namespace ChessChallenge.Application
             {
                 Program.StartMyBotvsEvilBotMT();
                 controller.StartNewBotMatch(ChallengeController.PlayerType.MyBot, ChallengeController.PlayerType.EvilBot);
+            }
+            if (NextButtonInRow("Test Static Eval", ref buttonPos, spacing, buttonSize))
+            {
+                Raylib.MinimizeWindow();
+                Program.TestEvaluation();
+                Raylib.RestoreWindow();
             }
             buttonPos.Y += breakSpacing;
             if (NextButtonInRow("Human vs MyBot", ref buttonPos, spacing, buttonSize))
