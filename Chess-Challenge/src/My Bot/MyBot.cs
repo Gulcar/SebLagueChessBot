@@ -1,14 +1,14 @@
 ﻿using ChessChallenge.API;
 using System;
-using System.Numerics;
+//using System.Numerics;
 //using System.Collections.Generic;
 //using System.Linq;
 
 public class MyBot : IChessBot
 {
-    int[] pieceValues = { 0, 100, 320, 330, 500, 900, 20000 };
+    readonly int[] pieceValues = { 0, 100, 320, 330, 500, 900, 20000 };
 
-    const int infinity = 1_000_000_000;
+    //const int infinity = 1_000_000_000;
 
     struct TTEntry
     {
@@ -19,8 +19,8 @@ public class MyBot : IChessBot
         public byte Type;
     }
 
-    const int ttSize = 21_333_333; // 256_000_000 / sizeof(TTEntry)(12);
-    TTEntry[] transpositionTable = new TTEntry[ttSize];
+    //const int ttSize = 21_333_333; // 256_000_000 / sizeof(TTEntry)(12);
+    TTEntry[] transpositionTable = new TTEntry[21_333_333];
 
     public Move Think(Board board, Timer timer)
     {
@@ -44,10 +44,10 @@ public class MyBot : IChessBot
         Move[] moves = board.GetLegalMoves();
         OrderMoves(moves);
         Move bestMove = moves[0];
-        int bestEval = -infinity;
+        int bestEval = -1_000_000_000;
 
-        int alpha = -infinity;
-        int beta = infinity;
+        int alpha = -1_000_000_000;
+        int beta = 1_000_000_000;
 
         if (!prevBest.IsNull)
             SearchMove(prevBest);
@@ -79,7 +79,7 @@ public class MyBot : IChessBot
     {
         int alphaOg = alpha;
 
-        ulong ttIndex = board.ZobristKey % ttSize;
+        ulong ttIndex = board.ZobristKey % 21_333_333;
         TTEntry ttEntry = transpositionTable[ttIndex];
 
         if (ttEntry.Key == (uint)board.ZobristKey &&
@@ -88,7 +88,7 @@ public class MyBot : IChessBot
             // moramo popravit rezultat ce je bil shranjen mat
             // shranjen je bil samo PlyCount od shranjevanja naprej zato dodamo trenuten PlyCount
             // https://github.com/maksimKorzh/chess_programming/blob/master/src/bbc/tt_search_mating_scores/TT_mate_scoring.txt
-            if (Math.Abs(ttEntry.Eval) > infinity - 10000)
+            if (Math.Abs(ttEntry.Eval) > 900_000_000)
                 ttEntry.Eval -= board.PlyCount * Math.Sign(ttEntry.Eval);
 
             // EXACT
@@ -107,7 +107,7 @@ public class MyBot : IChessBot
 
         if (board.IsInCheckmate())
             // ce to negiras je mat = infinity - PlyCount, torej je bolje imeti cim manjsi PlyCount (cim hitrejsi mat)
-            return -infinity + board.PlyCount;
+            return -1_000_000_000 + board.PlyCount;
 
         if (board.IsDraw())
             return 0;
@@ -117,7 +117,7 @@ public class MyBot : IChessBot
 
         Move[] moves = board.GetLegalMoves();
         OrderMoves(moves);
-        int bestEval = -infinity;
+        int bestEval = -1_000_000_000;
 
         foreach (Move m in moves)
         {
@@ -142,7 +142,7 @@ public class MyBot : IChessBot
 
         // ce je eval mat, potem za shranjevanje v tt pristejemo trenuten
         // PlyCount tako da je v ttju shranjen PlyCount od shranjevanja naprej
-        if (Math.Abs(ttEntry.Eval) > infinity - 10000)
+        if (Math.Abs(ttEntry.Eval) > 900_000_000)
             ttEntry.Eval += board.PlyCount * Math.Sign(ttEntry.Eval);
 
         if (bestEval <= alphaOg)
@@ -224,8 +224,8 @@ public class MyBot : IChessBot
         eval += 12 * side * BitboardHelper.GetNumberOfSetBits(board.GetPieceBitboard(PieceType.Bishop, false) & 0b11111111_00000000_00000000_00000000_00000000_00000000_00000000_00000000);
 
         // minus za zgodnjo kraljico
-        if ((board.GetPieceBitboard(PieceType.Queen, true)  & 0b11111111_11111111_11111111_11111111_11111111_11111111_00000000_00000000) > 0) eval -= (int)(20 * side * middlegameWeight);
-        if ((board.GetPieceBitboard(PieceType.Queen, false) & 0b00000000_00000000_11111111_11111111_11111111_11111111_11111111_11111111) > 0) eval += (int)(20 * side * middlegameWeight);
+        //if ((board.GetPieceBitboard(PieceType.Queen, true)  & 0b11111111_11111111_11111111_11111111_11111111_11111111_00000000_00000000) > 0) eval -= (int)(20 * side * middlegameWeight);
+        //if ((board.GetPieceBitboard(PieceType.Queen, false) & 0b00000000_00000000_11111111_11111111_11111111_11111111_11111111_11111111) > 0) eval += (int)(20 * side * middlegameWeight);
 
         return eval;
     }
