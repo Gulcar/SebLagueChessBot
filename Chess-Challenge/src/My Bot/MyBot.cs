@@ -26,7 +26,7 @@ public class MyBot : IChessBot
     {
         Move move = Move.NullMove;
 
-        for (int depth = 1; depth < 256; depth++)
+        for (int depth = 1; depth < 128; depth++)
         {
             move = Search(board, depth, move);
 
@@ -85,6 +85,12 @@ public class MyBot : IChessBot
         if (ttEntry.Key == (uint)board.ZobristKey &&
             ttEntry.Depth >= depth)
         {
+            // moramo popravit rezultat ce je bil shranjen mat
+            // shranjen je bil samo PlyCount od shranjevanja naprej zato dodamo trenuten PlyCount
+            // https://github.com/maksimKorzh/chess_programming/blob/master/src/bbc/tt_search_mating_scores/TT_mate_scoring.txt
+            if (Math.Abs(ttEntry.Eval) > infinity - 10000)
+                ttEntry.Eval -= board.PlyCount * Math.Sign(ttEntry.Eval);
+
             // EXACT
             if (ttEntry.Type == 0)
                 return ttEntry.Eval;
@@ -100,8 +106,8 @@ public class MyBot : IChessBot
         }
 
         if (board.IsInCheckmate())
-            // tukaj depth odstejemo ker vecji kot je depth prej je mat (depth se v globino zmansuje)
-            return -infinity + 1000 - depth;
+            // ce to negiras je mat = infinity - PlyCount, torej je bolje imeti cim manjsi PlyCount (cim hitrejsi mat)
+            return -infinity + board.PlyCount;
 
         if (board.IsDraw())
             return 0;
@@ -132,6 +138,11 @@ public class MyBot : IChessBot
         ttEntry.Key = (uint)board.ZobristKey;
         ttEntry.Depth = (byte)depth;
         ttEntry.Eval = bestEval;
+
+        // ce je eval mat, potem za shranjevanje v tt pristejemo trenuten
+        // PlyCount tako da je v ttju shranjen PlyCount od shranjevanja naprej
+        if (Math.Abs(ttEntry.Eval) > infinity - 10000)
+            ttEntry.Eval += board.PlyCount * Math.Sign(ttEntry.Eval);
 
         if (bestEval <= alphaOg)
             ttEntry.Type = 2; // UPPERBOUND
@@ -218,6 +229,7 @@ public class MyBot : IChessBot
         return eval;
     }
 
+    // search je hitrejsi ce najprej pregledam poteze ki so bolj zanimive
     void OrderMoves(Move[] moves)
     {
         int j = 0;
@@ -232,4 +244,6 @@ public class MyBot : IChessBot
                 j++;
             }
     }
+
+    // https://github.com/SebLague/Chess-Coding-Adventure
 }
