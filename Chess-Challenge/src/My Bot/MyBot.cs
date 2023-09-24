@@ -112,7 +112,7 @@ public class MyBot : IChessBot
         if (board.IsDraw())
             return 0;
 
-        if (depth == 0)
+        if (depth <= 0)
             return Evaluate(board);
 
         Move[] moves = board.GetLegalMoves();
@@ -122,7 +122,8 @@ public class MyBot : IChessBot
         foreach (Move m in moves)
         {
             board.MakeMove(m);
-            int eval = -Negamax(board, !white, depth - 1, -beta, -alpha);
+            int extension = board.IsInCheck() ? 1 : 0;
+            int eval = -Negamax(board, !white, depth - 1 + extension, -beta, -alpha);
             board.UndoMove(m);
 
             if (eval > bestEval)
